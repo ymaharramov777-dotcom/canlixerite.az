@@ -1,0 +1,3890 @@
+{
+  "name": "react-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist server.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^2.4.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/leaflet": "^1.9.23",
+    "@vitejs/plugin-react": "^6.1.1",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "vite": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "autoprefixer": "^10.4.21",
+    "esbuild": "^0.25.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^7.0.2",
+    "@types/express": "^4.17.21"
+  }
+}
+index.html
+Html
+<!doctype html>
+<html lang="az" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>DÜNYA CANLI HAVA XƏRİTƏSİ</title>
+    <meta name="description" content="Bütün dünyanı əhatə edən real vaxtlı interaktiv canlı hava xəritəsi, külək axınları, temperatur, yağıntı, bulud, peyk/radar görüntüləri və 24 saatlıq / 7 günlük hava proqnozu." />
+    <meta property="og:title" content="DÜNYA CANLI HAVA XƏRİTƏSİ" />
+    <meta property="og:description" content="Real vaxtlı qlobal hava xəritəsi, külək axınları, peyk, radar və 7 günlük proqnoz." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-[#070B12] text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200 overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+src/index.css
+CSS
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans);
+  }
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.leaflet-container {
+  background: #070b12 !important;
+  font-family: var(--font-sans) !important;
+  outline: none;
+}
+
+.leaflet-control-attribution {
+  background: rgba(7, 11, 18, 0.72) !important;
+  color: rgba(148, 163, 184, 0.85) !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  backdrop-filter: blur(6px);
+}
+
+.leaflet-control-attribution a {
+  color: rgba(56, 189, 248, 0.9) !important;
+}
+
+.weather-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.weather-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.weather-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+.weather-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.weather-city-marker,
+.weather-storm-marker,
+.weather-pressure-marker {
+  background: transparent;
+  border: none;
+}
+src/main.tsx
+Tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import 'leaflet/dist/leaflet.css';
+import App from './App.tsx';
+import './index.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+src/types/weather.ts
+Ts
+export type WeatherLayerId =
+  | 'wind'
+  | 'temperature'
+  | 'precipitation'
+  | 'clouds'
+  | 'pressure'
+  | 'humidity'
+  | 'storms';
+
+export type BaseMapId = 'dark' | 'satellite' | 'light';
+
+export interface GridPointWeather {
+  id: string;
+  name?: string;
+  country?: string;
+  isMajorCity?: boolean;
+  lat: number;
+  lon: number;
+  temperature: number;
+  apparentTemperature: number;
+  humidity: number;
+  precipitation: number;
+  rain: number;
+  snowfall: number;
+  weatherCode: number;
+  cloudCover: number;
+  pressure: number;
+  windSpeed: number;
+  windDirection: number;
+  windGusts: number;
+}
+
+export interface HourlyForecastItem {
+  time: string;
+  temperature: number;
+  apparentTemperature: number;
+  precipitationProbability: number;
+  precipitation: number;
+  rain: number;
+  snowfall: number;
+  weatherCode: number;
+  cloudCover: number;
+  pressure: number;
+  humidity: number;
+  windSpeed: number;
+  windDirection: number;
+  windGusts: number;
+}
+
+export interface DailyForecastItem {
+  date: string;
+  weatherCode: number;
+  tempMax: number;
+  tempMin: number;
+  precipitationSum: number;
+  precipitationProbabilityMax: number;
+  windSpeedMax: number;
+  windGustsMax: number;
+  windDirectionDominant: number;
+  sunrise: string;
+  sunset: string;
+}
+
+export interface SelectedLocationWeather {
+  name: string;
+  country?: string;
+  lat: number;
+  lon: number;
+  timezone: string;
+  utcOffsetSeconds: number;
+  elevation?: number;
+  observedAt: string;
+  current: {
+    temperature: number;
+    apparentTemperature: number;
+    humidity: number;
+    precipitation: number;
+    rain: number;
+    snowfall: number;
+    weatherCode: number;
+    cloudCover: number;
+    pressure: number;
+    windSpeed: number;
+    windDirection: number;
+    windGusts: number;
+    isDay: boolean;
+  };
+  hourly: HourlyForecastItem[];
+  daily: DailyForecastItem[];
+}
+
+export interface StormEvent {
+  id: string;
+  title: string;
+  category: 'cyclone' | 'gale' | 'thunderstorm';
+  source: 'NASA EONET' | 'Open-Meteo Real-Time';
+  lat: number;
+  lon: number;
+  windSpeed?: number;
+  windGusts?: number;
+  pressure?: number;
+  updatedAt: string;
+  track?: Array<{ lat: number; lon: number; date: string }>;
+  description: string;
+}
+
+export interface RainViewerFrame {
+  time: number;
+  path: string;
+}
+
+export interface RainViewerData {
+  host: string;
+  radarFrames: RainViewerFrame[];
+  satelliteFrames: RainViewerFrame[];
+}
+
+export interface GeocodingResult {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  country?: string;
+  country_code?: string;
+  admin1?: string;
+  population?: number;
+}
+
+export interface HoverProbeData {
+  lat: number;
+  lon: number;
+  temperature: number;
+  windSpeed: number;
+  windDirection: number;
+  pressure: number;
+  humidity: number;
+  cloudCover: number;
+  precipitation: number;
+  snowfall: number;
+}
+src/utils/weatherAz.ts
+Ts
+export interface DirectionInfo {
+  short: string;
+  full: string;
+  degrees: number;
+}
+
+const DIRECTIONS_AZ = [
+  { short: 'Ş', full: 'Şimal' },
+  { short: 'Ş-Şq', full: 'Şimal-Şərq' },
+  { short: 'Şq', full: 'Şərq' },
+  { short: 'C-Şq', full: 'Cənub-Şərq' },
+  { short: 'C', full: 'Cənub' },
+  { short: 'C-Q', full: 'Cənub-Qərb' },
+  { short: 'Q', full: 'Qərb' },
+  { short: 'Ş-Q', full: 'Şimal-Qərb' },
+];
+
+export function getDirectionAz(degrees: number): DirectionInfo {
+  const normalized = ((degrees % 360) + 360) % 360;
+  const idx = Math.round(normalized / 45) % 8;
+  return {
+    ...DIRECTIONS_AZ[idx],
+    degrees: Math.round(normalized),
+  };
+}
+
+export interface WindStrengthInfo {
+  label: string;
+  beaufort: number;
+  level: 'calm' | 'moderate' | 'strong' | 'gale' | 'storm';
+  colorClass: string;
+}
+
+export function getWindStrengthAz(kmh: number): WindStrengthInfo {
+  if (kmh < 6) {
+    return { label: 'Sakit', beaufort: 1, level: 'calm', colorClass: 'text-slate-300' };
+  }
+  if (kmh < 20) {
+    return { label: 'Zəif külək', beaufort: 3, level: 'calm', colorClass: 'text-cyan-300' };
+  }
+  if (kmh < 39) {
+    return { label: 'Mülayim külək', beaufort: 5, level: 'moderate', colorClass: 'text-emerald-400' };
+  }
+  if (kmh < 62) {
+    return { label: 'Güclü külək', beaufort: 7, level: 'strong', colorClass: 'text-amber-400' };
+  }
+  if (kmh < 89) {
+    return { label: 'Fırtına küləyi', beaufort: 9, level: 'gale', colorClass: 'text-orange-400' };
+  }
+  return { label: 'Qasırğa / Siklon', beaufort: 11, level: 'storm', colorClass: 'text-rose-400' };
+}
+
+export type WeatherVisualType =
+  | 'clear'
+  | 'partly-cloudy'
+  | 'cloudy'
+  | 'fog'
+  | 'drizzle'
+  | 'rain'
+  | 'heavy-rain'
+  | 'snow'
+  | 'sleet'
+  | 'thunderstorm';
+
+export function getWeatherInfoAz(code: number): {
+  label: string;
+  type: WeatherVisualType;
+} {
+  switch (code) {
+    case 0:
+      return { label: 'Açıq səma', type: 'clear' };
+    case 1:
+      return { label: 'Əsasən açıq', type: 'clear' };
+    case 2:
+      return { label: 'Dəyişkən buludlu', type: 'partly-cloudy' };
+    case 3:
+      return { label: 'Tutqun buludlu', type: 'cloudy' };
+    case 45:
+    case 48:
+      return { label: 'Dumanlı', type: 'fog' };
+    case 51:
+    case 53:
+    case 55:
+      return { label: 'Çiskinli yağış', type: 'drizzle' };
+    case 56:
+    case 57:
+      return { label: 'Buzlu çiskin', type: 'sleet' };
+    case 61:
+    case 63:
+      return { label: 'Yağışlı', type: 'rain' };
+    case 65:
+      return { label: 'Güclü leysan yağışı', type: 'heavy-rain' };
+    case 66:
+    case 67:
+      return { label: 'Buzlu yağış', type: 'sleet' };
+    case 71:
+    case 73:
+      return { label: 'Qar yağışı', type: 'snow' };
+    case 75:
+    case 77:
+      return { label: 'Güclü qar yağışı', type: 'snow' };
+    case 80:
+    case 81:
+      return { label: 'Qısamüddətli yağış', type: 'rain' };
+    case 82:
+      return { label: 'Şiddətli leysan', type: 'heavy-rain' };
+    case 85:
+    case 86:
+      return { label: 'Qar fırtınası', type: 'snow' };
+    case 95:
+      return { label: 'Şimşəkli fırtına', type: 'thunderstorm' };
+    case 96:
+    case 99:
+      return { label: 'Dolu və şimşəkli fırtına', type: 'thunderstorm' };
+    default:
+      return { label: 'Dəyişkən hava', type: 'partly-cloudy' };
+  }
+}
+
+const WEEKDAYS_AZ = [
+  'Bazar',
+  'Bazar ertəsi',
+  'Çərşənbə axşamı',
+  'Çərşənbə',
+  'Cümə axşamı',
+  'Cümə',
+  'Şənbə',
+];
+
+const WEEKDAYS_SHORT_AZ = ['Baz', 'B.e', 'Ç.a', 'Çər', 'C.a', 'Cüm', 'Şən'];
+
+const MONTHS_AZ = [
+  'Yanvar',
+  'Fevral',
+  'Mart',
+  'Aprel',
+  'May',
+  'İyun',
+  'İyul',
+  'Avqust',
+  'Sentyabr',
+  'Oktyabr',
+  'Noyabr',
+  'Dekabr',
+];
+
+export function formatWeekdayAz(isoDate: string, index: number): string {
+  if (index === 0) return 'Bu gün';
+  if (index === 1) return 'Sabah';
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return WEEKDAYS_AZ[dt.getUTCDay()] ?? isoDate;
+}
+
+export function formatDateShortAz(isoDate: string): string {
+  const [, m, d] = isoDate.split('-').map(Number);
+  const month = MONTHS_AZ[(m ?? 1) - 1] ?? '';
+  return `${d} ${month.slice(0, 3)}`;
+}
+
+export function formatDayShortAz(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return WEEKDAYS_SHORT_AZ[dt.getUTCDay()] ?? isoDate;
+}
+
+export function formatHourAz(isoDateTime: string): string {
+  const parts = isoDateTime.split('T');
+  return parts[1]?.slice(0, 5) ?? isoDateTime;
+}
+
+export function formatUnixTimeLocal(unixSeconds: number): string {
+  const d = new Date(unixSeconds * 1000);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+export function getTempColorRgb(tempC: number): [number, number, number] {
+  const stops: Array<[number, [number, number, number]]> = [
+    [-35, [99, 102, 241]],
+    [-15, [59, 130, 246]],
+    [0, [34, 211, 238]],
+    [12, [16, 185, 129]],
+    [22, [250, 204, 21]],
+    [32, [249, 115, 22]],
+    [45, [225, 29, 72]],
+  ];
+
+  if (tempC <= stops[0][0]) return stops[0][1];
+  if (tempC >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [t1, c1] = stops[i];
+    const [t2, c2] = stops[i + 1];
+    if (tempC >= t1 && tempC <= t2) {
+      const ratio = (tempC - t1) / (t2 - t1);
+      return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * ratio),
+        Math.round(c1[1] + (c2[1] - c1[1]) * ratio),
+        Math.round(c1[2] + (c2[2] - c1[2]) * ratio),
+      ];
+    }
+  }
+  return [250, 204, 21];
+}
+
+export function getWindColorRgb(kmh: number): [number, number, number] {
+  const stops: Array<[number, [number, number, number]]> = [
+    [0, [56, 189, 248]],
+    [20, [34, 211, 238]],
+    [40, [52, 211, 153]],
+    [60, [250, 204, 21]],
+    [85, [249, 115, 22]],
+    [120, [244, 63, 94]],
+  ];
+  if (kmh <= stops[0][0]) return stops[0][1];
+  if (kmh >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [v1, c1] = stops[i];
+    const [v2, c2] = stops[i + 1];
+    if (kmh >= v1 && kmh <= v2) {
+      const r = (kmh - v1) / (v2 - v1);
+      return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * r),
+        Math.round(c1[1] + (c2[1] - c1[1]) * r),
+        Math.round(c1[2] + (c2[2] - c1[2]) * r),
+      ];
+    }
+  }
+  return [244, 63, 94];
+}
+
+export function getPressureColorRgb(hpa: number): [number, number, number] {
+  const stops: Array<[number, [number, number, number]]> = [
+    [970, [225, 29, 72]],
+    [995, [249, 115, 22]],
+    [1013, [34, 211, 238]],
+    [1025, [59, 130, 246]],
+    [1040, [139, 92, 246]],
+  ];
+  if (hpa <= stops[0][0]) return stops[0][1];
+  if (hpa >= stops[stops.length - 1][0]) return stops[stops.length - 1][1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [p1, c1] = stops[i];
+    const [p2, c2] = stops[i + 1];
+    if (hpa >= p1 && hpa <= p2) {
+      const r = (hpa - p1) / (p2 - p1);
+      return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * r),
+        Math.round(c1[1] + (c2[1] - c1[1]) * r),
+        Math.round(c1[2] + (c2[2] - c1[2]) * r),
+      ];
+    }
+  }
+  return [34, 211, 238];
+}
+src/utils/interpolation.ts
+Ts
+import {
+  GLOBAL_LAT_BANDS,
+  GLOBAL_LON_BANDS,
+} from '../services/weatherApi';
+import type { GridPointWeather } from '../types/weather';
+
+export interface InterpolatedSample {
+  temperature: number;
+  u: number;
+  v: number;
+  windSpeed: number;
+  windDirection: number;
+  pressure: number;
+  humidity: number;
+  cloudCover: number;
+  precipitation: number;
+  snowfall: number;
+}
+
+function wrapLon(lon: number): number {
+  let l = ((lon + 180) % 360 + 360) % 360 - 180;
+  if (l === -180) l = 180;
+  return l;
+}
+
+export function sampleGlobalGrid(
+  gridMatrix: GridPointWeather[][],
+  lat: number,
+  lon: number
+): InterpolatedSample {
+  if (!gridMatrix.length || !gridMatrix[0]?.length) {
+    return {
+      temperature: 15,
+      u: 0,
+      v: 0,
+      windSpeed: 0,
+      windDirection: 0,
+      pressure: 1013,
+      humidity: 50,
+      cloudCover: 0,
+      precipitation: 0,
+      snowfall: 0,
+    };
+  }
+
+  const rows = GLOBAL_LAT_BANDS.length;
+  const cols = GLOBAL_LON_BANDS.length;
+
+  const clampedLat = Math.max(
+    GLOBAL_LAT_BANDS[0],
+    Math.min(GLOBAL_LAT_BANDS[rows - 1], lat)
+  );
+  const latStep = 20;
+  const latFloat = (clampedLat - GLOBAL_LAT_BANDS[0]) / latStep;
+  const r0 = Math.min(rows - 2, Math.max(0, Math.floor(latFloat)));
+  const r1 = r0 + 1;
+  const ty = latFloat - r0;
+
+  const normLon = wrapLon(lon);
+  const lonStep = 30;
+  let lonFloat = (normLon - GLOBAL_LON_BANDS[0]) / lonStep;
+  if (lonFloat < 0) lonFloat += cols;
+  const c0 = ((Math.floor(lonFloat) % cols) + cols) % cols;
+  const c1 = (c0 + 1) % cols;
+  const tx = lonFloat - Math.floor(lonFloat);
+
+  const p00 = gridMatrix[r0][c0];
+  const p01 = gridMatrix[r0][c1];
+  const p10 = gridMatrix[r1][c0];
+  const p11 = gridMatrix[r1][c1];
+
+  const bilerp = (a: number, b: number, c: number, d: number) =>
+    a * (1 - tx) * (1 - ty) +
+    b * tx * (1 - ty) +
+    c * (1 - tx) * ty +
+    d * tx * ty;
+
+  const toUV = (pt: GridPointWeather): [number, number] => {
+    const rad = (pt.windDirection * Math.PI) / 180;
+    const u = -Math.sin(rad) * pt.windSpeed;
+    const v = -Math.cos(rad) * pt.windSpeed;
+    return [u, v];
+  };
+
+  const [u00, v00] = toUV(p00);
+  const [u01, v01] = toUV(p01);
+  const [u10, v10] = toUV(p10);
+  const [u11, v11] = toUV(p11);
+
+  const u = bilerp(u00, u01, u10, u11);
+  const v = bilerp(v00, v01, v10, v11);
+  const windSpeed = Math.hypot(u, v);
+  const windDirection = ((Math.atan2(-u, -v) * 180) / Math.PI + 360) % 360;
+
+  return {
+    temperature: bilerp(p00.temperature, p01.temperature, p10.temperature, p11.temperature),
+    u,
+    v,
+    windSpeed,
+    windDirection,
+    pressure: bilerp(p00.pressure, p01.pressure, p10.pressure, p11.pressure),
+    humidity: bilerp(p00.humidity, p01.humidity, p10.humidity, p11.humidity),
+    cloudCover: bilerp(p00.cloudCover, p01.cloudCover, p10.cloudCover, p11.cloudCover),
+    precipitation: bilerp(
+      p00.precipitation,
+      p01.precipitation,
+      p10.precipitation,
+      p11.precipitation
+    ),
+    snowfall: bilerp(p00.snowfall, p01.snowfall, p10.snowfall, p11.snowfall),
+  };
+}
+src/services/weatherApi.ts
+Ts
+import type {
+  GeocodingResult,
+  GridPointWeather,
+  HourlyForecastItem,
+  RainViewerData,
+  SelectedLocationWeather,
+  StormEvent,
+} from '../types/weather';
+
+const OPEN_METEO_FORECAST = 'https://api.open-meteo.com/v1/forecast';
+const OPEN_METEO_GEOCODING = 'https://geocoding-api.open-meteo.com/v1/search';
+const RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
+const NASA_EONET_STORMS =
+  'https://eonet.gsfc.nasa.gov/api/v3/events?category=severeStorms&status=open&limit=25';
+
+export const GLOBAL_LAT_BANDS = [-55, -35, -15, 5, 25, 45, 65] as const;
+export const GLOBAL_LON_BANDS = [
+  -165, -135, -105, -75, -45, -15, 15, 45, 75, 105, 135, 165,
+] as const;
+
+export interface MajorCitySeed {
+  id: string;
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+}
+
+export const MAJOR_WORLD_CITIES: MajorCitySeed[] = [
+  { id: 'baku', name: 'Bakı', country: 'Azərbaycan', lat: 40.4093, lon: 49.8671 },
+  { id: 'ganja', name: 'Gəncə', country: 'Azərbaycan', lat: 40.6828, lon: 46.3606 },
+  { id: 'istanbul', name: 'İstanbul', country: 'Türkiyə', lat: 41.0082, lon: 28.9784 },
+  { id: 'london', name: 'London', country: 'Böyük Britaniya', lat: 51.5074, lon: -0.1278 },
+  { id: 'paris', name: 'Paris', country: 'Fransa', lat: 48.8566, lon: 2.3522 },
+  { id: 'berlin', name: 'Berlin', country: 'Almaniya', lat: 52.52, lon: 13.405 },
+  { id: 'madrid', name: 'Madrid', country: 'İspaniya', lat: 40.4168, lon: -3.7038 },
+  { id: 'moscow', name: 'Moskva', country: 'Rusiya', lat: 55.7558, lon: 37.6173 },
+  { id: 'reykjavik', name: 'Reykyavik', country: 'İslandiya', lat: 64.1466, lon: -21.9426 },
+  { id: 'cairo', name: 'Qahirə', country: 'Misir', lat: 30.0444, lon: 31.2357 },
+  { id: 'dubai', name: 'Dubay', country: 'BƏƏ', lat: 25.2048, lon: 55.2708 },
+  { id: 'riyadh', name: 'Ər-Riyad', country: 'Səudiyyə Ərəbistanı', lat: 24.7136, lon: 46.6753 },
+  { id: 'delhi', name: 'Yeni Dehli', country: 'Hindistan', lat: 28.6139, lon: 77.209 },
+  { id: 'beijing', name: 'Pekin', country: 'Çin', lat: 39.9042, lon: 116.4074 },
+  { id: 'tokyo', name: 'Tokio', country: 'Yaponiya', lat: 35.6762, lon: 139.6503 },
+  { id: 'singapore', name: 'Sinqapur', country: 'Sinqapur', lat: 1.3521, lon: 103.8198 },
+  { id: 'sydney', name: 'Sidney', country: 'Avstraliya', lat: -33.8688, lon: 151.2093 },
+  { id: 'capetown', name: 'Keyptaun', country: 'CAR', lat: -33.9249, lon: 18.4241 },
+  { id: 'newyork', name: 'Nyu-York', country: 'ABŞ', lat: 40.7128, lon: -74.006 },
+  { id: 'chicago', name: 'Çikaqo', country: 'ABŞ', lat: 41.8781, lon: -87.6298 },
+  { id: 'losangeles', name: 'Los-Anceles', country: 'ABŞ', lat: 34.0522, lon: -118.2437 },
+  { id: 'mexico', name: 'Mexiko', country: 'Meksika', lat: 19.4326, lon: -99.1332 },
+  { id: 'rio', name: 'Rio-de-Janeyro', country: 'Braziliya', lat: -22.9068, lon: -43.1729 },
+  { id: 'buenosaires', name: 'Buenos-Ayres', country: 'Argentina', lat: -34.6037, lon: -58.3816 },
+];
+
+interface RawCurrentResponse {
+  latitude: number;
+  longitude: number;
+  current?: {
+    temperature_2m: number;
+    relative_humidity_2m: number;
+    apparent_temperature: number;
+    precipitation: number;
+    rain: number;
+    snowfall: number;
+    weather_code: number;
+    cloud_cover: number;
+    pressure_msl: number;
+    wind_speed_10m: number;
+    wind_direction_10m: number;
+    wind_gusts_10m: number;
+  };
+}
+
+interface PointRequestMeta {
+  id: string;
+  lat: number;
+  lon: number;
+  name?: string;
+  country?: string;
+  isMajorCity?: boolean;
+}
+
+async function fetchBatchCurrentWeather(
+  points: PointRequestMeta[]
+): Promise<GridPointWeather[]> {
+  const lats = points.map((p) => p.lat.toFixed(4)).join(',');
+  const lons = points.map((p) => p.lon.toFixed(4)).join(',');
+  const params = new URLSearchParams({
+    latitude: lats,
+    longitude: lons,
+    current: [
+      'temperature_2m',
+      'relative_humidity_2m',
+      'apparent_temperature',
+      'precipitation',
+      'rain',
+      'snowfall',
+      'weather_code',
+      'cloud_cover',
+      'pressure_msl',
+      'wind_speed_10m',
+      'wind_direction_10m',
+      'wind_gusts_10m',
+    ].join(','),
+    wind_speed_unit: 'kmh',
+    timezone: 'UTC',
+  });
+
+  const res = await fetch(`${OPEN_METEO_FORECAST}?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Open-Meteo xətası: ${res.status}`);
+  }
+  const raw = await res.json();
+  const list: RawCurrentResponse[] = Array.isArray(raw) ? raw : [raw];
+
+  return list.map((item, idx) => {
+    const meta = points[idx];
+    const c = item.current;
+    return {
+      id: meta.id,
+      name: meta.name,
+      country: meta.country,
+      isMajorCity: meta.isMajorCity,
+      lat: meta.lat,
+      lon: meta.lon,
+      temperature: c?.temperature_2m ?? 0,
+      apparentTemperature: c?.apparent_temperature ?? 0,
+      humidity: c?.relative_humidity_2m ?? 50,
+      precipitation: c?.precipitation ?? 0,
+      rain: c?.rain ?? 0,
+      snowfall: c?.snowfall ?? 0,
+      weatherCode: c?.weather_code ?? 0,
+      cloudCover: c?.cloud_cover ?? 0,
+      pressure: c?.pressure_msl ?? 1013,
+      windSpeed: c?.wind_speed_10m ?? 0,
+      windDirection: c?.wind_direction_10m ?? 0,
+      windGusts: c?.wind_gusts_10m ?? 0,
+    };
+  });
+}
+
+export async function fetchGlobalWeatherGrid(): Promise<{
+  gridMatrix: GridPointWeather[][];
+  allPoints: GridPointWeather[];
+  cities: GridPointWeather[];
+}> {
+  const gridMeta: PointRequestMeta[] = [];
+  for (let r = 0; r < GLOBAL_LAT_BANDS.length; r++) {
+    for (let c = 0; c < GLOBAL_LON_BANDS.length; c++) {
+      const lat = GLOBAL_LAT_BANDS[r];
+      const lon = GLOBAL_LON_BANDS[c];
+      gridMeta.push({
+        id: `grid_${r}_${c}`,
+        lat,
+        lon,
+      });
+    }
+  }
+
+  const cityMeta: PointRequestMeta[] = MAJOR_WORLD_CITIES.map((city) => ({
+    ...city,
+    isMajorCity: true,
+  }));
+
+  const combined = [...gridMeta, ...cityMeta];
+  const chunkSize = 36;
+  const chunks: PointRequestMeta[][] = [];
+  for (let i = 0; i < combined.length; i += chunkSize) {
+    chunks.push(combined.slice(i, i + chunkSize));
+  }
+
+  const chunkResults = await Promise.all(chunks.map(fetchBatchCurrentWeather));
+  const allPoints = chunkResults.flat();
+
+  const rows = GLOBAL_LAT_BANDS.length;
+  const cols = GLOBAL_LON_BANDS.length;
+  const gridMatrix: GridPointWeather[][] = [];
+  for (let r = 0; r < rows; r++) {
+    gridMatrix.push(allPoints.slice(r * cols, (r + 1) * cols));
+  }
+
+  const cities = allPoints.slice(rows * cols);
+  return { gridMatrix, allPoints, cities };
+}
+
+export async function fetchLocationWeather(
+  lat: number,
+  lon: number,
+  knownName?: string,
+  knownCountry?: string
+): Promise<SelectedLocationWeather> {
+  const params = new URLSearchParams({
+    latitude: lat.toFixed(4),
+    longitude: lon.toFixed(4),
+    current: [
+      'temperature_2m',
+      'relative_humidity_2m',
+      'apparent_temperature',
+      'is_day',
+      'precipitation',
+      'rain',
+      'snowfall',
+      'weather_code',
+      'cloud_cover',
+      'pressure_msl',
+      'wind_speed_10m',
+      'wind_direction_10m',
+      'wind_gusts_10m',
+    ].join(','),
+    hourly: [
+      'temperature_2m',
+      'apparent_temperature',
+      'precipitation_probability',
+      'precipitation',
+      'rain',
+      'snowfall',
+      'weather_code',
+      'cloud_cover',
+      'pressure_msl',
+      'relative_humidity_2m',
+      'wind_speed_10m',
+      'wind_direction_10m',
+      'wind_gusts_10m',
+    ].join(','),
+    daily: [
+      'weather_code',
+      'temperature_2m_max',
+      'temperature_2m_min',
+      'precipitation_sum',
+      'precipitation_probability_max',
+      'wind_speed_10m_max',
+      'wind_gusts_10m_max',
+      'wind_direction_10m_dominant',
+      'sunrise',
+      'sunset',
+    ].join(','),
+    wind_speed_unit: 'kmh',
+    timezone: 'auto',
+    forecast_days: '7',
+  });
+
+  const [weatherRes, geoInfo] = await Promise.all([
+    fetch(`${OPEN_METEO_FORECAST}?${params.toString()}`),
+    knownName
+      ? Promise.resolve({ name: knownName, country: knownCountry })
+      : reverseGeocodeLocation(lat, lon),
+  ]);
+
+  if (!weatherRes.ok) {
+    throw new Error(`Hava məlumatı alınmadı (${weatherRes.status})`);
+  }
+
+  const data = await weatherRes.json();
+  const c = data.current;
+  const h = data.hourly;
+  const d = data.daily;
+
+  const currentIso: string = c?.time ?? new Date().toISOString();
+  const currentPrefix = currentIso.slice(0, 13);
+  let startHourIdx = (h?.time as string[] | undefined)?.findIndex((t) =>
+    t.startsWith(currentPrefix)
+  ) ?? 0;
+  if (startHourIdx < 0) startHourIdx = 0;
+
+  const hourly: HourlyForecastItem[] = [];
+  const totalHours = h?.time?.length ?? 0;
+  for (let i = startHourIdx; i < Math.min(startHourIdx + 24, totalHours); i++) {
+    hourly.push({
+      time: h.time[i],
+      temperature: h.temperature_2m[i],
+      apparentTemperature: h.apparent_temperature[i],
+      precipitationProbability: h.precipitation_probability?.[i] ?? 0,
+      precipitation: h.precipitation?.[i] ?? 0,
+      rain: h.rain?.[i] ?? 0,
+      snowfall: h.snowfall?.[i] ?? 0,
+      weatherCode: h.weather_code[i],
+      cloudCover: h.cloud_cover[i],
+      pressure: h.pressure_msl[i],
+      humidity: h.relative_humidity_2m[i],
+      windSpeed: h.wind_speed_10m[i],
+      windDirection: h.wind_direction_10m[i],
+      windGusts: h.wind_gusts_10m?.[i] ?? h.wind_speed_10m[i],
+    });
+  }
+
+  const daily = (d?.time ?? []).slice(0, 7).map((dateStr: string, idx: number) => ({
+    date: dateStr,
+    weatherCode: d.weather_code[idx],
+    tempMax: d.temperature_2m_max[idx],
+    tempMin: d.temperature_2m_min[idx],
+    precipitationSum: d.precipitation_sum?.[idx] ?? 0,
+    precipitationProbabilityMax: d.precipitation_probability_max?.[idx] ?? 0,
+    windSpeedMax: d.wind_speed_10m_max[idx],
+    windGustsMax: d.wind_gusts_10m_max?.[idx] ?? d.wind_speed_10m_max[idx],
+    windDirectionDominant: d.wind_direction_10m_dominant?.[idx] ?? 0,
+    sunrise: d.sunrise?.[idx] ?? '',
+    sunset: d.sunset?.[idx] ?? '',
+  }));
+
+  return {
+    name: geoInfo.name,
+    country: geoInfo.country,
+    lat: data.latitude ?? lat,
+    lon: data.longitude ?? lon,
+    timezone: data.timezone ?? 'UTC',
+    utcOffsetSeconds: data.utc_offset_seconds ?? 0,
+    elevation: data.elevation,
+    observedAt: currentIso,
+    current: {
+      temperature: c.temperature_2m,
+      apparentTemperature: c.apparent_temperature,
+      humidity: c.relative_humidity_2m,
+      precipitation: c.precipitation,
+      rain: c.rain,
+      snowfall: c.snowfall,
+      weatherCode: c.weather_code,
+      cloudCover: c.cloud_cover,
+      pressure: c.pressure_msl,
+      windSpeed: c.wind_speed_10m,
+      windDirection: c.wind_direction_10m,
+      windGusts: c.wind_gusts_10m,
+      isDay: c.is_day === 1,
+    },
+    hourly,
+    daily,
+  };
+}
+
+export async function reverseGeocodeLocation(
+  lat: number,
+  lon: number
+): Promise<{ name: string; country?: string }> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat.toFixed(
+        4
+      )}&lon=${lon.toFixed(4)}&zoom=10&accept-language=az`
+    );
+    if (res.ok) {
+      const json = await res.json();
+      const addr = json.address;
+      if (addr) {
+        const place =
+          addr.city ||
+          addr.town ||
+          addr.village ||
+          addr.state ||
+          addr.region ||
+          json.name;
+        if (place) {
+          return {
+            name: place,
+            country: addr.country,
+          };
+        }
+      }
+      if (json.display_name) {
+        const parts = String(json.display_name).split(',').map((s) => s.trim());
+        return {
+          name: parts[0] || `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`,
+          country: parts[parts.length - 1],
+        };
+      }
+    }
+  } catch {
+    // Fallback
+  }
+  const latLabel = `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? 'Ş' : 'C'}`;
+  const lonLabel = `${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? 'Şq' : 'Q'}`;
+  return { name: `${latLabel}, ${lonLabel}`, country: 'Açıq dəniz / Bölgə' };
+}
+
+export async function searchLocations(query: string): Promise<GeocodingResult[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const paramsAz = new URLSearchParams({
+    name: trimmed,
+    count: '8',
+    language: 'az',
+    format: 'json',
+  });
+
+  const resAz = await fetch(`${OPEN_METEO_GEOCODING}?${paramsAz.toString()}`);
+  if (resAz.ok) {
+    const dataAz = await resAz.json();
+    if (Array.isArray(dataAz.results) && dataAz.results.length > 0) {
+      return dataAz.results;
+    }
+  }
+
+  const paramsEn = new URLSearchParams({
+    name: trimmed,
+    count: '8',
+    language: 'en',
+    format: 'json',
+  });
+  const resEn = await fetch(`${OPEN_METEO_GEOCODING}?${paramsEn.toString()}`);
+  if (!resEn.ok) return [];
+  const dataEn = await resEn.json();
+  return Array.isArray(dataEn.results) ? dataEn.results : [];
+}
+
+export async function fetchRainViewerMaps(): Promise<RainViewerData | null> {
+  try {
+    const res = await fetch(RAINVIEWER_API);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const host = data.host || 'https://tilecache.rainviewer.com';
+    const radarFrames = [
+      ...(data.radar?.past ?? []),
+      ...(data.radar?.nowcast ?? []),
+    ];
+    const satelliteFrames = data.satellite?.infrared ?? [];
+    return { host, radarFrames, satelliteFrames };
+  } catch {
+    return null;
+  }
+}
+
+interface EonetEvent {
+  id: string;
+  title: string;
+  geometry?: Array<{
+    date: string;
+    type: string;
+    coordinates: [number, number];
+  }>;
+}
+
+export async function fetchActiveStorms(
+  gridPoints: GridPointWeather[]
+): Promise<StormEvent[]> {
+  const storms: StormEvent[] = [];
+
+  try {
+    const res = await fetch(NASA_EONET_STORMS);
+    if (res.ok) {
+      const json = await res.json();
+      const events: EonetEvent[] = json.events ?? [];
+      for (const ev of events) {
+        const geoms = ev.geometry ?? [];
+        if (geoms.length === 0) continue;
+        const latest = geoms[geoms.length - 1];
+        if (!Array.isArray(latest.coordinates) || latest.coordinates.length < 2) {
+          continue;
+        }
+        const [lon, lat] = latest.coordinates;
+        storms.push({
+          id: `eonet_${ev.id}`,
+          title: ev.title,
+          category: 'cyclone',
+          source: 'NASA EONET',
+          lat,
+          lon,
+          updatedAt: latest.date,
+          track: geoms
+            .filter((g) => Array.isArray(g.coordinates))
+            .map((g) => ({
+              lon: g.coordinates[0],
+              lat: g.coordinates[1],
+              date: g.date,
+            })),
+          description: 'NASA EONET canlı tropik siklon / fırtına izlənməsi',
+        });
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  for (const pt of gridPoints) {
+    const isThunder = pt.weatherCode >= 95;
+    const isDeepLow = pt.pressure <= 994;
+    const isGale = pt.windGusts >= 58 || pt.windSpeed >= 48;
+
+    if (!isThunder && !isDeepLow && !isGale) continue;
+
+    const nearExisting = storms.some(
+      (s) => Math.hypot(s.lat - pt.lat, s.lon - pt.lon) < 6
+    );
+    if (nearExisting) continue;
+
+    const category: StormEvent['category'] = isDeepLow
+      ? 'cyclone'
+      : isThunder
+        ? 'thunderstorm'
+        : 'gale';
+
+    const locationTitle = pt.name
+      ? `${pt.name} yaxınlığında`
+      : `${Math.abs(pt.lat).toFixed(0)}°${pt.lat >= 0 ? 'Ş' : 'C'}, ${Math.abs(
+          pt.lon
+        ).toFixed(0)}°${pt.lon >= 0 ? 'Şq' : 'Q'}`;
+
+    const kindLabel =
+      category === 'cyclone'
+        ? 'Alçaq təzyiqli siklon mərkəzi'
+        : category === 'thunderstorm'
+          ? 'Şimşəkli fırtına ocağı'
+          : 'Güclü qasırğa küləkləri';
+
+    storms.push({
+      id: `meteo_${pt.id}`,
+      title: `${kindLabel} · ${locationTitle}`,
+      category,
+      source: 'Open-Meteo Real-Time',
+      lat: pt.lat,
+      lon: pt.lon,
+      windSpeed: pt.windSpeed,
+      windGusts: pt.windGusts,
+      pressure: pt.pressure,
+      updatedAt: new Date().toISOString(),
+      description: `Təzyiq: ${Math.round(pt.pressure)} hPa · Şiddət: ${Math.round(
+        pt.windGusts
+      )} km/saat`,
+    });
+  }
+
+  return storms;
+}
+src/components/WeatherIcon.tsx
+Tsx
+import {
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
+  Sun,
+} from 'lucide-react';
+import { getWeatherInfoAz } from '../utils/weatherAz';
+
+interface WeatherIconProps {
+  code: number;
+  className?: string;
+}
+
+export function WeatherIcon({ code, className = 'w-5 h-5' }: WeatherIconProps) {
+  const { type } = getWeatherInfoAz(code);
+
+  switch (type) {
+    case 'clear':
+      return <Sun className={`${className} text-amber-400`} />;
+    case 'partly-cloudy':
+      return <CloudSun className={`${className} text-amber-300`} />;
+    case 'cloudy':
+      return <Cloud className={`${className} text-slate-300`} />;
+    case 'fog':
+      return <CloudFog className={`${className} text-slate-400`} />;
+    case 'drizzle':
+      return <CloudDrizzle className={`${className} text-cyan-300`} />;
+    case 'rain':
+    case 'heavy-rain':
+      return <CloudRain className={`${className} text-cyan-400`} />;
+    case 'snow':
+    case 'sleet':
+      return <CloudSnow className={`${className} text-indigo-200`} />;
+    case 'thunderstorm':
+      return <CloudLightning className={`${className} text-amber-300`} />;
+    default:
+      return <CloudSun className={`${className} text-slate-300`} />;
+  }
+}
+src/components/CompassRose.tsx
+Tsx
+import { getDirectionAz } from '../utils/weatherAz';
+
+interface CompassRoseProps {
+  windDirection?: number;
+  windSpeed?: number;
+  locationName?: string;
+}
+
+export function CompassRose({
+  windDirection,
+  windSpeed,
+  locationName,
+}: CompassRoseProps) {
+  const dirInfo =
+    typeof windDirection === 'number' ? getDirectionAz(windDirection) : null;
+
+  const blowToAngle =
+    typeof windDirection === 'number' ? (windDirection + 180) % 360 : 0;
+
+  return (
+    <div
+      className="select-none rounded-xl border border-slate-800/90 bg-[#0B111E]/90 p-2.5 backdrop-blur-md"
+      aria-label="Kompas və külək istiqaməti"
+    >
+      <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+        <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden="true">
+          <circle
+            cx="50"
+            cy="50"
+            r="36"
+            fill="none"
+            stroke="rgba(148, 163, 184, 0.22)"
+            strokeWidth="1"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="26"
+            fill="none"
+            stroke="rgba(148, 163, 184, 0.12)"
+            strokeWidth="1"
+            strokeDasharray="2 3"
+          />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+            <line
+              key={deg}
+              x1="50"
+              y1="14"
+              x2="50"
+              y2={deg % 90 === 0 ? '20' : '17'}
+              stroke={deg === 0 ? '#22d3ee' : 'rgba(148, 163, 184, 0.45)'}
+              strokeWidth={deg % 90 === 0 ? '1.5' : '1'}
+              transform={`rotate(${deg} 50 50)`}
+            />
+          ))}
+
+          {typeof windDirection === 'number' && (
+            <g transform={`rotate(${blowToAngle} 50 50)`}>
+              <line
+                x1="50"
+                y1="72"
+                x2="50"
+                y2="24"
+                stroke="#22d3ee"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <polygon points="50,19 45,29 50,26 55,29" fill="#22d3ee" />
+              <circle cx="50" cy="50" r="3" fill="#0B111E" stroke="#22d3ee" strokeWidth="1.5" />
+            </g>
+          )}
+        </svg>
+
+        <span
+          title="Şimal (0°)"
+          className="absolute top-0 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-wider text-cyan-400"
+        >
+          Ş
+        </span>
+        <span
+          title="Şərq (90°)"
+          className="absolute right-0.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-300"
+        >
+          Şq
+        </span>
+        <span
+          title="Cənub (180°)"
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-slate-300"
+        >
+          C
+        </span>
+        <span
+          title="Qərb (270°)"
+          className="absolute left-0.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-300"
+        >
+          Q
+        </span>
+      </div>
+
+      {dirInfo && (
+        <div className="mt-1.5 border-t border-slate-800/80 pt-1.5 text-center">
+          <div className="truncate max-w-[112px] text-[10px] text-slate-400 mx-auto">
+            {locationName || 'Külək vektoru'}
+          </div>
+          <div className="font-mono-tabular text-[11px] font-semibold text-slate-100">
+            {dirInfo.short} · {dirInfo.degrees}°
+          </div>
+          {typeof windSpeed === 'number' && (
+            <div className="font-mono-tabular text-[10px] text-cyan-400">
+              {Math.round(windSpeed)} km/saat
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+src/components/SearchBar.tsx
+Tsx
+import { useEffect, useRef, useState } from 'react';
+import { Globe2, Loader2, LocateFixed, MapPin, Search, X } from 'lucide-react';
+import { searchLocations } from '../services/weatherApi';
+import type { GeocodingResult } from '../types/weather';
+
+interface SearchBarProps {
+  onSelectLocation: (lat: number, lon: number, name: string, country?: string) => void;
+  onResetWorldView: () => void;
+  onLocateUser: () => void;
+  isLocating: boolean;
+}
+
+const POPULAR_CITIES: Array<{
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+}> = [
+  { name: 'Bakı', country: 'Azərbaycan', lat: 40.4093, lon: 49.8671 },
+  { name: 'Gəncə', country: 'Azərbaycan', lat: 40.6828, lon: 46.3606 },
+  { name: 'İstanbul', country: 'Türkiyə', lat: 41.0082, lon: 28.9784 },
+  { name: 'London', country: 'Böyük Britaniya', lat: 51.5074, lon: -0.1278 },
+  { name: 'Nyu-York', country: 'ABŞ', lat: 40.7128, lon: -74.006 },
+  { name: 'Tokio', country: 'Yaponiya', lat: 35.6762, lon: 139.6503 },
+  { name: 'Dubay', country: 'BƏƏ', lat: 25.2048, lon: 55.2708 },
+];
+
+export function SearchBar({
+  onSelectLocation,
+  onResetWorldView,
+  onLocateUser,
+  isLocating,
+}: SearchBarProps) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<GeocodingResult[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchLocations(trimmed);
+        if (!cancelled) {
+          setResults(res);
+        }
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setIsSearching(false);
+      }
+    }, 280);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  const handlePick = (lat: number, lon: number, name: string, country?: string) => {
+    onSelectLocation(lat, lon, name, country);
+    setQuery('');
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative flex w-full items-center gap-2">
+      <div className="relative flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={query}
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          placeholder="Ölkə və ya şəhər axtarın (məs: Bakı, Paris, Tokio)..."
+          className="h-10 w-full rounded-lg border border-slate-700/80 bg-[#0D1424]/95 pl-9 pr-8 text-sm text-slate-100 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          aria-label="Ölkə və ya şəhər axtar"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setResults([]);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-200"
+            aria-label="Axtarışı təmizlə"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {isOpen && (
+          <div className="weather-scroll absolute left-0 right-0 top-11 z-[1000] max-h-80 overflow-y-auto rounded-lg border border-slate-700/90 bg-[#0B111E]/98 py-1.5 shadow-2xl backdrop-blur-md">
+            {query.trim().length < 2 ? (
+              <div>
+                <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-slate-400">
+                  Məşhur istiqamətlər
+                </div>
+                {POPULAR_CITIES.map((city) => (
+                  <button
+                    key={city.name}
+                    type="button"
+                    onClick={() =>
+                      handlePick(city.lat, city.lon, city.name, city.country)
+                    }
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/70"
+                  >
+                    <span className="flex items-center gap-2 font-medium">
+                      <MapPin className="h-3.5 w-3.5 text-cyan-400" />
+                      {city.name}
+                    </span>
+                    <span className="text-xs text-slate-400">{city.country}</span>
+                  </button>
+                ))}
+              </div>
+            ) : isSearching ? (
+              <div className="flex items-center gap-2 px-3 py-4 text-sm text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                Axtarılır...
+              </div>
+            ) : results.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-slate-400">
+                Nəticə tapılmadı. Başqa şəhər və ya ölkə adı sınayın.
+              </div>
+            ) : (
+              results.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() =>
+                    handlePick(
+                      item.latitude,
+                      item.longitude,
+                      item.name,
+                      item.country
+                    )
+                  }
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/70"
+                >
+                  <div className="min-w-0 pr-2">
+                    <div className="truncate font-medium text-slate-100">
+                      {item.name}
+                    </div>
+                    <div className="truncate text-xs text-slate-400">
+                      {[item.admin1, item.country].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <span className="font-mono-tabular shrink-0 text-[11px] text-slate-400">
+                    {item.latitude.toFixed(1)}°, {item.longitude.toFixed(1)}°
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onLocateUser}
+        disabled={isLocating}
+        title="Mənim yerim"
+        className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-[#0D1424]/95 px-3 text-xs font-medium text-slate-200 transition-colors hover:border-cyan-500/60 hover:text-cyan-300 disabled:opacity-60 whitespace-nowrap"
+      >
+        {isLocating ? (
+          <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+        ) : (
+          <LocateFixed className="h-4 w-4 text-cyan-400" />
+        )}
+        <span className="hidden sm:inline">Mənim yerim</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onResetWorldView}
+        title="Bütün dünyanı göstər"
+        className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-[#0D1424]/95 px-3 text-xs font-medium text-slate-200 transition-colors hover:border-cyan-500/60 hover:text-cyan-300 whitespace-nowrap"
+      >
+        <Globe2 className="h-4 w-4 text-cyan-400" />
+        <span className="hidden md:inline">Tam dünya</span>
+      </button>
+    </div>
+  );
+}
+src/components/LayerControls.tsx
+Tsx
+import {
+  Cloud,
+  CloudRain,
+  Droplets,
+  Gauge,
+  Layers,
+  Navigation,
+  Satellite,
+  Thermometer,
+  Wind,
+  Zap,
+} from 'lucide-react';
+import type { BaseMapId, WeatherLayerId } from '../types/weather';
+
+interface LayerControlsProps {
+  activeLayer: WeatherLayerId;
+  onChangeLayer: (layer: WeatherLayerId) => void;
+  showWindFlow: boolean;
+  onToggleWindFlow: () => void;
+  baseMap: BaseMapId;
+  onChangeBaseMap: (map: BaseMapId) => void;
+  stormCount: number;
+}
+
+const LAYER_OPTIONS: Array<{
+  id: WeatherLayerId;
+  label: string;
+  icon: typeof Wind;
+}> = [
+  { id: 'wind', label: 'Külək', icon: Wind },
+  { id: 'temperature', label: 'Temperatur', icon: Thermometer },
+  { id: 'precipitation', label: 'Yağış və Qar', icon: CloudRain },
+  { id: 'clouds', label: 'Buludlar', icon: Cloud },
+  { id: 'pressure', label: 'Təzyiq', icon: Gauge },
+  { id: 'humidity', label: 'Rütubət', icon: Droplets },
+  { id: 'storms', label: 'Fırtınalar', icon: Zap },
+];
+
+export function LayerControls({
+  activeLayer,
+  onChangeLayer,
+  showWindFlow,
+  onToggleWindFlow,
+  baseMap,
+  onChangeBaseMap,
+  stormCount,
+}: LayerControlsProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="hidden md:flex flex-col gap-1 rounded-xl border border-slate-800/90 bg-[#0B111E]/90 p-1.5 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+          <Layers className="h-3.5 w-3.5 text-cyan-400" />
+          <span>Hava qatları</span>
+        </div>
+
+        {LAYER_OPTIONS.map((layer) => {
+          const Icon = layer.icon;
+          const active = activeLayer === layer.id;
+          return (
+            <button
+              key={layer.id}
+              type="button"
+              onClick={() => onChangeLayer(layer.id)}
+              className={`flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors whitespace-nowrap ${
+                active
+                  ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/40'
+                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Icon
+                  className={`h-4 w-4 ${
+                    active ? 'text-cyan-400' : 'text-slate-400'
+                  }`}
+                />
+                <span>{layer.label}</span>
+              </span>
+              {layer.id === 'storms' && stormCount > 0 && (
+                <span className="font-mono-tabular text-[11px] font-semibold text-amber-400">
+                  {stormCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        <div className="my-1 border-t border-slate-800/80" />
+
+        <button
+          type="button"
+          onClick={onToggleWindFlow}
+          className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors whitespace-nowrap ${
+            showWindFlow || activeLayer === 'wind'
+              ? 'bg-emerald-500/10 text-emerald-300'
+              : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Navigation className="h-3.5 w-3.5" />
+            <span>Külək oxları</span>
+          </span>
+          <span className="font-mono-tabular text-[10px]">
+            {showWindFlow || activeLayer === 'wind' ? 'Açıq' : 'Bağlı'}
+          </span>
+        </button>
+      </div>
+
+      <div className="hidden md:flex flex-col gap-1 rounded-xl border border-slate-800/90 bg-[#0B111E]/90 p-1.5 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+          <Satellite className="h-3.5 w-3.5 text-cyan-400" />
+          <span>Xəritə görünüşü</span>
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {(
+            [
+              { id: 'dark', label: 'Tünd' },
+              { id: 'satellite', label: 'Peyk' },
+              { id: 'light', label: 'Açıq' },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChangeBaseMap(item.id)}
+              className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                baseMap === item.id
+                  ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
+                  : 'text-slate-300 hover:bg-slate-800/70'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex md:hidden items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-800/90 bg-[#0B111E]/92 p-1.5 backdrop-blur-md weather-scroll">
+        {LAYER_OPTIONS.map((layer) => {
+          const Icon = layer.icon;
+          const active = activeLayer === layer.id;
+          return (
+            <button
+              key={layer.id}
+              type="button"
+              onClick={() => onChangeLayer(layer.id)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                active
+                  ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
+                  : 'text-slate-300 hover:bg-slate-800/70'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>{layer.label}</span>
+            </button>
+          );
+        })}
+
+        <div className="h-5 w-px shrink-0 bg-slate-800" />
+
+        <button
+          type="button"
+          onClick={() =>
+            onChangeBaseMap(
+              baseMap === 'dark'
+                ? 'satellite'
+                : baseMap === 'satellite'
+                  ? 'light'
+                  : 'dark'
+            )
+          }
+          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/70 whitespace-nowrap"
+        >
+          <Satellite className="h-3.5 w-3.5 text-cyan-400" />
+          <span>
+            {baseMap === 'dark'
+              ? 'Tünd'
+              : baseMap === 'satellite'
+                ? 'Peyk'
+                : 'Açıq'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleWindFlow}
+          className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium whitespace-nowrap ${
+            showWindFlow || activeLayer === 'wind'
+              ? 'bg-emerald-500/15 text-emerald-300'
+              : 'text-slate-400'
+          }`}
+        >
+          <Navigation className="h-3.5 w-3.5" />
+          <span>Oxlar</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+src/components/LayerLegend.tsx
+Tsx
+import type { WeatherLayerId } from '../types/weather';
+
+interface LayerLegendProps {
+  activeLayer: WeatherLayerId;
+}
+
+export function LayerLegend({ activeLayer }: LayerLegendProps) {
+  if (activeLayer === 'storms') {
+    return (
+      <div className="rounded-xl border border-slate-800/90 bg-[#0B111E]/90 px-3 py-2 text-[11px] text-slate-300 backdrop-blur-md">
+        <div className="mb-1 font-semibold text-slate-200">
+          Fırtına və Siklon İzlənməsi
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-slate-300">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            Siklon / Qasırğa
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+            Şimşək / Güclü külək
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  let title = '';
+  let gradient = '';
+  let ticks: string[] = [];
+
+  switch (activeLayer) {
+    case 'temperature':
+      title = 'Temperatur (°C)';
+      gradient =
+        'linear-gradient(90deg, #6366f1 0%, #3b82f6 18%, #22d3ee 36%, #10b981 55%, #facc15 72%, #f97316 86%, #e11d48 100%)';
+      ticks = ['-35°', '-10°', '0°', '15°', '25°', '40°+'];
+      break;
+    case 'wind':
+      title = 'Külək sürəti (km/saat)';
+      gradient =
+        'linear-gradient(90deg, #38bdf8 0%, #22d3ee 25%, #34d399 45%, #facc15 65%, #f97316 82%, #f43f5e 100%)';
+      ticks = ['0', '20', '40', '60', '85', '120+'];
+      break;
+    case 'precipitation':
+      title = 'Yağış (mavi) və Qar (bənövşəyi-ağ)';
+      gradient =
+        'linear-gradient(90deg, #06b6d4 0%, #3b82f6 45%, #818cf8 75%, #e0e7ff 100%)';
+      ticks = ['Yüngül', 'Orta', 'Güclü', 'Qar / Dolu'];
+      break;
+    case 'clouds':
+      title = 'Bulud örtüyü (%)';
+      gradient =
+        'linear-gradient(90deg, rgba(148,163,184,0.1) 0%, rgba(203,213,225,0.55) 50%, #f8fafc 100%)';
+      ticks = ['0%', '25%', '50%', '75%', '100%'];
+      break;
+    case 'pressure':
+      title = 'Atmosfer təzyiqi (hPa)';
+      gradient =
+        'linear-gradient(90deg, #e11d48 0%, #f97316 25%, #22d3ee 55%, #3b82f6 80%, #8b5cf6 100%)';
+      ticks = ['970 (A)', '995', '1013', '1025', '1040 (Y)'];
+      break;
+    case 'humidity':
+      title = 'Nisbi rütubət (%)';
+      gradient =
+        'linear-gradient(90deg, #d97706 0%, #10b981 45%, #06b6d4 75%, #0284c7 100%)';
+      ticks = ['10%', '35%', '60%', '85%', '100%'];
+      break;
+  }
+
+  return (
+    <div className="w-56 sm:w-64 rounded-xl border border-slate-800/90 bg-[#0B111E]/90 px-3 py-2 backdrop-blur-md">
+      <div className="mb-1.5 text-[11px] font-semibold text-slate-200">
+        {title}
+      </div>
+      <div
+        className="h-2 w-full rounded-full"
+        style={{ background: gradient }}
+      />
+      <div className="font-mono-tabular mt-1 flex items-center justify-between text-[10px] text-slate-400">
+        {ticks.map((t) => (
+          <span key={t}>{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+src/components/TimelinePlayer.tsx
+Tsx
+import { Pause, Play, Radio } from 'lucide-react';
+import type { RainViewerFrame, WeatherLayerId } from '../types/weather';
+import { formatUnixTimeLocal } from '../utils/weatherAz';
+
+interface TimelinePlayerProps {
+  activeLayer: WeatherLayerId;
+  frames: RainViewerFrame[];
+  frameIndex: number;
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  onChangeIndex: (index: number) => void;
+}
+
+export function TimelinePlayer({
+  activeLayer,
+  frames,
+  frameIndex,
+  isPlaying,
+  onTogglePlay,
+  onChangeIndex,
+}: TimelinePlayerProps) {
+  const showRadarControls =
+    (activeLayer === 'precipitation' || activeLayer === 'clouds') &&
+    frames.length > 0;
+
+  if (!showRadarControls) {
+    return null;
+  }
+
+  const currentFrame = frames[frameIndex] ?? frames[frames.length - 1];
+  const label =
+    activeLayer === 'precipitation'
+      ? 'Canlı Radar'
+      : 'Peyk Bulud Animasiyası';
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-800/90 bg-[#0B111E]/92 px-3 py-2 backdrop-blur-md">
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-300 transition-colors hover:bg-cyan-500/30"
+        aria-label={isPlaying ? 'Dayandır' : 'Oynat'}
+      >
+        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      </button>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center justify-between gap-4 text-[11px]">
+          <span className="flex items-center gap-1.5 font-medium text-slate-200 whitespace-nowrap">
+            <Radio className="h-3.5 w-3.5 text-cyan-400" />
+            {label}
+          </span>
+          <span className="font-mono-tabular font-semibold text-cyan-300">
+            {currentFrame ? formatUnixTimeLocal(currentFrame.time) : '--:--'}
+          </span>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={Math.max(0, frames.length - 1)}
+          value={frameIndex}
+          onChange={(e) => onChangeIndex(Number(e.target.value))}
+          className="h-1.5 w-36 sm:w-52 cursor-pointer accent-cyan-400"
+          aria-label="Radar zaman xətti"
+        />
+      </div>
+    </div>
+  );
+}
+src/components/WeatherCanvasOverlay.tsx
+Tsx
+import { useEffect, useRef } from 'react';
+import type L from 'leaflet';
+import type { GridPointWeather, WeatherLayerId } from '../types/weather';
+import { sampleGlobalGrid } from '../utils/interpolation';
+import {
+  getPressureColorRgb,
+  getTempColorRgb,
+  getWindColorRgb,
+} from '../utils/weatherAz';
+
+interface WeatherCanvasOverlayProps {
+  map: L.Map | null;
+  gridMatrix: GridPointWeather[][];
+  activeLayer: WeatherLayerId;
+  showWindFlow: boolean;
+}
+
+interface WindParticle {
+  x: number;
+  y: number;
+  age: number;
+  maxAge: number;
+  isArrow: boolean;
+}
+
+interface CloudPuff {
+  x: number;
+  y: number;
+  radius: number;
+  age: number;
+  maxAge: number;
+}
+
+export function WeatherCanvasOverlay({
+  map,
+  gridMatrix,
+  activeLayer,
+  showWindFlow,
+}: WeatherCanvasOverlayProps) {
+  const fieldCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!map || !fieldCanvasRef.current || gridMatrix.length === 0) return;
+
+    const canvas = fieldCanvasRef.current;
+
+    const renderScalarField = () => {
+      const size = map.getSize();
+      if (size.x <= 0 || size.y <= 0) return;
+
+      canvas.width = size.x;
+      canvas.height = size.y;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, size.x, size.y);
+
+      if (activeLayer === 'storms') return;
+
+      const cell = 10;
+      const cols = Math.max(2, Math.ceil(size.x / cell));
+      const rows = Math.max(2, Math.ceil(size.y / cell));
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = cols;
+      offscreen.height = rows;
+      const offCtx = offscreen.getContext('2d');
+      if (!offCtx) return;
+
+      const img = offCtx.createImageData(cols, rows);
+      const data = img.data;
+
+      for (let r = 0; r < rows; r++) {
+        const py = Math.min(size.y - 1, r * cell + cell * 0.5);
+        for (let c = 0; c < cols; c++) {
+          const px = Math.min(size.x - 1, c * cell + cell * 0.5);
+          const latlng = map.containerPointToLatLng([px, py]);
+          const sample = sampleGlobalGrid(gridMatrix, latlng.lat, latlng.lng);
+
+          let rgb: [number, number, number] = [0, 0, 0];
+          let alpha = 0;
+
+          if (activeLayer === 'temperature') {
+            rgb = getTempColorRgb(sample.temperature);
+            alpha = 95;
+          } else if (activeLayer === 'wind') {
+            rgb = getWindColorRgb(sample.windSpeed);
+            alpha = Math.min(92, Math.max(18, Math.round(sample.windSpeed * 1.15)));
+          } else if (activeLayer === 'pressure') {
+            rgb = getPressureColorRgb(sample.pressure);
+            alpha = 88;
+          } else if (activeLayer === 'humidity') {
+            const h = Math.max(0, Math.min(100, sample.humidity));
+            if (h < 40) {
+              rgb = [217, 119, 6];
+              alpha = Math.round((45 - h) * 1.4);
+            } else {
+              const t = (h - 40) / 60;
+              rgb = [
+                Math.round(16 + (14 - 16) * t),
+                Math.round(185 + (165 - 185) * t),
+                Math.round(129 + (233 - 129) * t),
+              ];
+              alpha = Math.round(25 + t * 85);
+            }
+          } else if (activeLayer === 'clouds') {
+            const cc = Math.max(0, Math.min(100, sample.cloudCover));
+            rgb = [226, 232, 240];
+            alpha = Math.round((cc / 100) * 105);
+          } else if (activeLayer === 'precipitation') {
+            if (sample.snowfall > 0.05 || (sample.precipitation > 0.08 && sample.temperature <= 1.2)) {
+              rgb = [196, 181, 253];
+              alpha = Math.min(135, Math.round(35 + (sample.snowfall + sample.precipitation) * 35));
+            } else if (sample.precipitation > 0.05) {
+              rgb = [6, 182, 212];
+              alpha = Math.min(135, Math.round(30 + sample.precipitation * 32));
+            } else {
+              alpha = 0;
+            }
+          }
+
+          const idx = (r * cols + c) * 4;
+          data[idx] = rgb[0];
+          data[idx + 1] = rgb[1];
+          data[idx + 2] = rgb[2];
+          data[idx + 3] = alpha;
+        }
+      }
+
+      offCtx.putImageData(img, 0, 0);
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(offscreen, 0, 0, size.x, size.y);
+      ctx.restore();
+    };
+
+    renderScalarField();
+
+    const clearOnMove = () => {
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    map.on('movestart', clearOnMove);
+    map.on('zoomstart', clearOnMove);
+    map.on('moveend', renderScalarField);
+    map.on('zoomend', renderScalarField);
+    map.on('resize', renderScalarField);
+
+    return () => {
+      map.off('movestart', clearOnMove);
+      map.off('zoomstart', clearOnMove);
+      map.off('moveend', renderScalarField);
+      map.off('zoomend', renderScalarField);
+      map.off('resize', renderScalarField);
+    };
+  }, [map, gridMatrix, activeLayer]);
+
+  useEffect(() => {
+    if (!map || !animCanvasRef.current || gridMatrix.length === 0) return;
+
+    const canvas = animCanvasRef.current;
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let isPanning = false;
+    let width = 0;
+    let height = 0;
+
+    const resizeCanvas = () => {
+      const size = map.getSize();
+      width = size.x;
+      height = size.y;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    resizeCanvas();
+
+    const shouldAnimateWind = showWindFlow || activeLayer === 'wind';
+    const shouldAnimateClouds = activeLayer === 'clouds';
+
+    const windCount = width < 640 ? 150 : 280;
+    const particles: WindParticle[] = Array.from({ length: windCount }, (_, idx) => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      age: Math.floor(Math.random() * 90),
+      maxAge: 70 + Math.floor(Math.random() * 60),
+      isArrow: idx % 3 === 0,
+    }));
+
+    const cloudCount = width < 640 ? 45 : 85;
+    const clouds: CloudPuff[] = Array.from({ length: cloudCount }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      radius: 18 + Math.random() * 26,
+      age: Math.floor(Math.random() * 140),
+      maxAge: 140 + Math.floor(Math.random() * 100),
+    }));
+
+    const drawArrow = (
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      angle: number,
+      len: number,
+      color: string,
+      alpha: number
+    ) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.55, 0);
+      ctx.lineTo(len * 0.45, 0);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(len * 0.65, 0);
+      ctx.lineTo(len * 0.15, -3.8);
+      ctx.lineTo(len * 0.25, 0);
+      ctx.lineTo(len * 0.15, 3.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+
+    let lookupCols = 24;
+    let lookupRows = 16;
+    let vxField = new Float32Array(lookupCols * lookupRows);
+    let vyField = new Float32Array(lookupCols * lookupRows);
+    let speedField = new Float32Array(lookupCols * lookupRows);
+    let cloudField = new Float32Array(lookupCols * lookupRows);
+
+    const rebuildVelocityLookup = () => {
+      if (width <= 0 || height <= 0) return;
+      lookupCols = Math.max(12, Math.min(36, Math.round(width / 48)));
+      lookupRows = Math.max(8, Math.min(24, Math.round(height / 48)));
+      vxField = new Float32Array(lookupCols * lookupRows);
+      vyField = new Float32Array(lookupCols * lookupRows);
+      speedField = new Float32Array(lookupCols * lookupRows);
+      cloudField = new Float32Array(lookupCols * lookupRows);
+
+      for (let r = 0; r < lookupRows; r++) {
+        const py = (r / (lookupRows - 1)) * height;
+        for (let c = 0; c < lookupCols; c++) {
+          const px = (c / (lookupCols - 1)) * width;
+          const ll = map.containerPointToLatLng([px, py]);
+          const s = sampleGlobalGrid(gridMatrix, ll.lat, ll.lng);
+          const idx = r * lookupCols + c;
+          vxField[idx] = s.u;
+          vyField[idx] = -s.v;
+          speedField[idx] = s.windSpeed;
+          cloudField[idx] = s.cloudCover;
+        }
+      }
+    };
+
+    const sampleLookup = (x: number, y: number) => {
+      const fx = Math.max(0, Math.min(lookupCols - 1.001, (x / width) * (lookupCols - 1)));
+      const fy = Math.max(0, Math.min(lookupRows - 1.001, (y / height) * (lookupRows - 1)));
+      const c0 = Math.floor(fx);
+      const r0 = Math.floor(fy);
+      const c1 = c0 + 1;
+      const r1 = r0 + 1;
+      const tx = fx - c0;
+      const ty = fy - r0;
+
+      const i00 = r0 * lookupCols + c0;
+      const i01 = r0 * lookupCols + c1;
+      const i10 = r1 * lookupCols + c0;
+      const i11 = r1 * lookupCols + c1;
+
+      const lerp4 = (arr: Float32Array) =>
+        arr[i00] * (1 - tx) * (1 - ty) +
+        arr[i01] * tx * (1 - ty) +
+        arr[i10] * (1 - tx) * ty +
+        arr[i11] * tx * ty;
+
+      return {
+        vx: lerp4(vxField),
+        vy: lerp4(vyField),
+        speed: lerp4(speedField),
+        cloud: lerp4(cloudField),
+      };
+    };
+
+    rebuildVelocityLookup();
+
+    const drawStaticArrowsOnce = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, width, height);
+      if (!shouldAnimateWind) return;
+
+      const spacing = width < 640 ? 64 : 76;
+      for (let y = spacing * 0.5; y < height; y += spacing) {
+        for (let x = spacing * 0.5; x < width; x += spacing) {
+          const { vx, vy, speed } = sampleLookup(x, y);
+          if (speed < 1) continue;
+          const angle = Math.atan2(vy, vx);
+          const [r, g, b] = getWindColorRgb(speed);
+          drawArrow(ctx, x, y, angle, 16, `rgb(${r}, ${g}, ${b})`, 0.85);
+        }
+      }
+    };
+
+    if (prefersReducedMotion) {
+      drawStaticArrowsOnce();
+    }
+
+    const tick = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx || isPanning || width <= 0 || height <= 0) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      ctx.clearRect(0, 0, width, height);
+
+      if (shouldAnimateClouds) {
+        for (const cl of clouds) {
+          const { vx, vy, cloud } = sampleLookup(cl.x, cl.y);
+          const speedScale = 0.025;
+          cl.x += vx * speedScale;
+          cl.y += vy * speedScale;
+          cl.age += 1;
+
+          if (
+            cl.age >= cl.maxAge ||
+            cl.x < -40 ||
+            cl.x > width + 40 ||
+            cl.y < -40 ||
+            cl.y > height + 40
+          ) {
+            cl.x = Math.random() * width;
+            cl.y = Math.random() * height;
+            cl.age = 0;
+          }
+
+          if (cloud > 18) {
+            const lifeFade = Math.sin((cl.age / cl.maxAge) * Math.PI);
+            const alpha = Math.min(0.42, (cloud / 100) * 0.42 * lifeFade);
+            const grad = ctx.createRadialGradient(cl.x, cl.y, 2, cl.x, cl.y, cl.radius);
+            grad.addColorStop(0, `rgba(241, 245, 249, ${alpha})`);
+            grad.addColorStop(1, 'rgba(241, 245, 249, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cl.x, cl.y, cl.radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      if (shouldAnimateWind) {
+        const speedMultiplier = 0.055;
+        for (const p of particles) {
+          const { vx, vy, speed } = sampleLookup(p.x, p.y);
+          const dx = vx * speedMultiplier;
+          const dy = vy * speedMultiplier;
+
+          const prevX = p.x;
+          const prevY = p.y;
+          p.x += dx;
+          p.y += dy;
+          p.age += 1;
+
+          if (p.age >= p.maxAge || p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
+            p.x = Math.random() * width;
+            p.y = Math.random() * height;
+            p.age = 0;
+            continue;
+          }
+
+          const lifeAlpha = Math.sin((p.age / p.maxAge) * Math.PI);
+          const [r, g, b] = getWindColorRgb(speed);
+          const colorStr = `rgb(${r}, ${g}, ${b})`;
+
+          if (p.isArrow) {
+            const angle = Math.atan2(dy, dx);
+            const arrowLen = Math.min(20, Math.max(12, 11 + speed * 0.1));
+            drawArrow(
+              ctx,
+              p.x,
+              p.y,
+              angle,
+              arrowLen,
+              colorStr,
+              Math.min(0.95, 0.45 + lifeAlpha * 0.5)
+            );
+          } else {
+            const tailScale = 4.2;
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.75, 0.25 + lifeAlpha * 0.5);
+            ctx.strokeStyle = colorStr;
+            ctx.lineWidth = speed > 45 ? 2 : 1.4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(prevX - dx * tailScale, prevY - dy * tailScale);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    if (!prefersReducedMotion && (shouldAnimateWind || shouldAnimateClouds)) {
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    const onMoveStart = () => {
+      isPanning = true;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, width, height);
+    };
+
+    const onMoveEnd = () => {
+      isPanning = false;
+      resizeCanvas();
+      rebuildVelocityLookup();
+      if (prefersReducedMotion) drawStaticArrowsOnce();
+    };
+
+    map.on('movestart', onMoveStart);
+    map.on('zoomstart', onMoveStart);
+    map.on('moveend', onMoveEnd);
+    map.on('zoomend', onMoveEnd);
+    map.on('resize', onMoveEnd);
+
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      map.off('movestart', onMoveStart);
+      map.off('zoomstart', onMoveStart);
+      map.off('moveend', onMoveEnd);
+      map.off('zoomend', onMoveEnd);
+      map.off('resize', onMoveEnd);
+    };
+  }, [map, gridMatrix, activeLayer, showWindFlow]);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[410] overflow-hidden">
+      <canvas ref={fieldCanvasRef} className="absolute inset-0 h-full w-full" />
+      <canvas ref={animCanvasRef} className="absolute inset-0 h-full w-full" />
+    </div>
+  );
+}
+src/components/WorldWeatherMap.tsx
+Tsx
+import { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
+import { Minus, Plus } from 'lucide-react';
+import type {
+  BaseMapId,
+  GridPointWeather,
+  HoverProbeData,
+  RainViewerData,
+  StormEvent,
+  WeatherLayerId,
+} from '../types/weather';
+import { sampleGlobalGrid } from '../utils/interpolation';
+import { getDirectionAz } from '../utils/weatherAz';
+import { WeatherCanvasOverlay } from './WeatherCanvasOverlay';
+
+interface WorldWeatherMapProps {
+  baseMap: BaseMapId;
+  activeLayer: WeatherLayerId;
+  showWindFlow: boolean;
+  gridMatrix: GridPointWeather[][];
+  cities: GridPointWeather[];
+  storms: StormEvent[];
+  rainViewer: RainViewerData | null;
+  radarFrameIndex: number;
+  satelliteFrameIndex: number;
+  selectedCoords: { lat: number; lon: number; name?: string } | null;
+  flyToTarget: {
+    lat: number;
+    lon: number;
+    zoom: number;
+    nonce: number;
+    fitWorld?: boolean;
+  } | null;
+  onMapClick: (lat: number, lon: number, name?: string, country?: string) => void;
+  onHoverProbe: (probe: HoverProbeData | null) => void;
+  onSelectStorm: (storm: StormEvent) => void;
+}
+
+export function WorldWeatherMap({
+  baseMap,
+  activeLayer,
+  showWindFlow,
+  gridMatrix,
+  cities,
+  storms,
+  rainViewer,
+  radarFrameIndex,
+  satelliteFrameIndex,
+  selectedCoords,
+  flyToTarget,
+  onMapClick,
+  onHoverProbe,
+  onSelectStorm,
+}: WorldWeatherMapProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const [mapReady, setMapReady] = useState<L.Map | null>(null);
+
+  const baseLayerRef = useRef<L.TileLayer | null>(null);
+  const labelsLayerRef = useRef<L.TileLayer | null>(null);
+  const radarLayerRef = useRef<L.TileLayer | null>(null);
+  const cityGroupRef = useRef<L.LayerGroup | null>(null);
+  const stormGroupRef = useRef<L.LayerGroup | null>(null);
+  const pressureGroupRef = useRef<L.LayerGroup | null>(null);
+  const selectedMarkerRef = useRef<L.CircleMarker | null>(null);
+
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
+  const onHoverProbeRef = useRef(onHoverProbe);
+  onHoverProbeRef.current = onHoverProbe;
+  const gridMatrixRef = useRef(gridMatrix);
+  gridMatrixRef.current = gridMatrix;
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const map = L.map(containerRef.current, {
+      center: [20, 10],
+      zoom: 2,
+      minZoom: 1,
+      maxZoom: 13,
+      zoomControl: false,
+      worldCopyJump: true,
+      zoomSnap: 0.1,
+      zoomDelta: 0.5,
+      maxBounds: [
+        [-82, -240],
+        [82, 240],
+      ],
+      maxBoundsViscosity: 0.6,
+    });
+
+    map.fitBounds(
+      [
+        [-56, -172],
+        [72, 172],
+      ],
+      { padding: [12, 12], animate: false }
+    );
+
+    cityGroupRef.current = L.layerGroup().addTo(map);
+    stormGroupRef.current = L.layerGroup().addTo(map);
+    pressureGroupRef.current = L.layerGroup().addTo(map);
+
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      onMapClickRef.current(e.latlng.lat, e.latlng.lng);
+    });
+
+    map.on('mousemove', (e: L.LeafletMouseEvent) => {
+      const gm = gridMatrixRef.current;
+      if (!gm.length) return;
+      const sample = sampleGlobalGrid(gm, e.latlng.lat, e.latlng.lng);
+      onHoverProbeRef.current({
+        lat: e.latlng.lat,
+        lon: e.latlng.lng,
+        temperature: sample.temperature,
+        windSpeed: sample.windSpeed,
+        windDirection: sample.windDirection,
+        pressure: sample.pressure,
+        humidity: sample.humidity,
+        cloudCover: sample.cloudCover,
+        precipitation: sample.precipitation,
+        snowfall: sample.snowfall,
+      });
+    });
+
+    map.on('mouseout', () => {
+      onHoverProbeRef.current(null);
+    });
+
+    mapRef.current = map;
+    setMapReady(map);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      setMapReady(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (baseLayerRef.current) {
+      map.removeLayer(baseLayerRef.current);
+      baseLayerRef.current = null;
+    }
+    if (labelsLayerRef.current) {
+      map.removeLayer(labelsLayerRef.current);
+      labelsLayerRef.current = null;
+    }
+
+    if (baseMap === 'satellite') {
+      baseLayerRef.current = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          attribution: '© Esri, Earthstar Geographics',
+          maxZoom: 17,
+        }
+      ).addTo(map);
+
+      labelsLayerRef.current = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
+        {
+          subdomains: 'abcd',
+          maxZoom: 19,
+          pane: 'overlayPane',
+        }
+      ).addTo(map);
+    } else if (baseMap === 'light') {
+      baseLayerRef.current = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        {
+          attribution: '© OpenStreetMap, © CARTO',
+          subdomains: 'abcd',
+          maxZoom: 19,
+        }
+      ).addTo(map);
+    } else {
+      baseLayerRef.current = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        {
+          attribution: '© OpenStreetMap, © CARTO',
+          subdomains: 'abcd',
+          maxZoom: 19,
+        }
+      ).addTo(map);
+    }
+  }, [baseMap]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (radarLayerRef.current) {
+      map.removeLayer(radarLayerRef.current);
+      radarLayerRef.current = null;
+    }
+
+    if (!rainViewer) return;
+
+    if (
+      activeLayer === 'precipitation' &&
+      rainViewer.radarFrames.length > 0
+    ) {
+      const frame =
+        rainViewer.radarFrames[
+          Math.min(radarFrameIndex, rainViewer.radarFrames.length - 1)
+        ];
+      if (frame) {
+        radarLayerRef.current = L.tileLayer(
+          `${rainViewer.host}${frame.path}/256/{z}/{x}/{y}/6/1_1.png`,
+          {
+            opacity: 0.7,
+            maxNativeZoom: 7,
+            maxZoom: 13,
+            zIndex: 350,
+            attribution: '© RainViewer',
+          }
+        ).addTo(map);
+      }
+    } else if (
+      activeLayer === 'clouds' &&
+      rainViewer.satelliteFrames.length > 0
+    ) {
+      const frame =
+        rainViewer.satelliteFrames[
+          Math.min(satelliteFrameIndex, rainViewer.satelliteFrames.length - 1)
+        ];
+      if (frame) {
+        radarLayerRef.current = L.tileLayer(
+          `${rainViewer.host}${frame.path}/256/{z}/{x}/{y}/0/0_0.png`,
+          {
+            opacity: 0.56,
+            maxNativeZoom: 7,
+            maxZoom: 13,
+            zIndex: 350,
+            attribution: '© RainViewer Peyk',
+          }
+        ).addTo(map);
+      }
+    }
+  }, [activeLayer, rainViewer, radarFrameIndex, satelliteFrameIndex]);
+
+  useEffect(() => {
+    const group = cityGroupRef.current;
+    if (!group) return;
+    group.clearLayers();
+
+    for (const city of cities) {
+      let metricText = `${Math.round(city.temperature)}°`;
+      if (activeLayer === 'wind') {
+        metricText = `${Math.round(city.windSpeed)} km/s`;
+      } else if (activeLayer === 'pressure') {
+        metricText = `${Math.round(city.pressure)}`;
+      } else if (activeLayer === 'humidity') {
+        metricText = `${Math.round(city.humidity)}%`;
+      } else if (activeLayer === 'clouds') {
+        metricText = `${Math.round(city.cloudCover)}%`;
+      } else if (activeLayer === 'precipitation') {
+        metricText =
+          city.snowfall > 0
+            ? `${city.snowfall.toFixed(1)} sm`
+            : `${city.precipitation.toFixed(1)} mm`;
+      }
+
+      const dir = getDirectionAz(city.windDirection);
+      const html = `
+        <div class="group flex items-center gap-1.5 rounded-md border border-slate-700/80 bg-[#0B111E]/88 px-2 py-0.5 text-[11px] shadow-md backdrop-blur-sm transition-transform hover:scale-105 cursor-pointer whitespace-nowrap">
+          <span class="font-medium text-slate-200">${city.name}</span>
+          <span class="font-mono-tabular font-semibold text-cyan-300">${metricText}</span>
+        </div>
+      `;
+
+      const icon = L.divIcon({
+        className: 'weather-city-marker',
+        html,
+        iconSize: [0, 0],
+        iconAnchor: [0, 10],
+      });
+
+      const marker = L.marker([city.lat, city.lon], { icon });
+      marker.bindTooltip(
+        `${city.name} (${city.country ?? ''}) · ${Math.round(
+          city.temperature
+        )}°C · Külək: ${Math.round(city.windSpeed)} km/saat (${dir.short})`,
+        { direction: 'top', offset: [0, -8] }
+      );
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        onMapClickRef.current(city.lat, city.lon, city.name, city.country);
+      });
+      marker.addTo(group);
+    }
+  }, [cities, activeLayer]);
+
+  useEffect(() => {
+    const group = pressureGroupRef.current;
+    if (!group) return;
+    group.clearLayers();
+
+    if (activeLayer !== 'pressure' || !gridMatrix.length) return;
+
+    const rows = gridMatrix.length;
+    const cols = gridMatrix[0].length;
+
+    for (let r = 1; r < rows - 1; r++) {
+      for (let c = 0; c < cols; c++) {
+        const pt = gridMatrix[r][c];
+        const left = gridMatrix[r][(c - 1 + cols) % cols].pressure;
+        const right = gridMatrix[r][(c + 1) % cols].pressure;
+        const up = gridMatrix[r - 1][c].pressure;
+        const down = gridMatrix[r + 1][c].pressure;
+
+        const isLocalHigh =
+          pt.pressure >= 1022 &&
+          pt.pressure >= left &&
+          pt.pressure >= right &&
+          pt.pressure >= up &&
+          pt.pressure >= down;
+
+        const isLocalLow =
+          pt.pressure <= 1002 &&
+          pt.pressure <= left &&
+          pt.pressure <= right &&
+          pt.pressure <= up &&
+          pt.pressure <= down;
+
+        if (!isLocalHigh && !isLocalLow) continue;
+
+        const letter = isLocalHigh ? 'Y' : 'A';
+        const colorClass = isLocalHigh
+          ? 'text-blue-300 border-blue-400/60 bg-blue-950/80'
+          : 'text-rose-300 border-rose-400/60 bg-rose-950/80';
+
+        const icon = L.divIcon({
+          className: 'weather-pressure-marker',
+          html: `
+            <div class="flex flex-col items-center pointer-events-none select-none">
+              <div class="flex h-7 w-7 items-center justify-center rounded-full border ${colorClass} text-sm font-bold shadow-lg">${letter}</div>
+              <span class="font-mono-tabular mt-0.5 rounded bg-[#070B12]/80 px-1 text-[10px] text-slate-200">${Math.round(
+                pt.pressure
+              )}</span>
+            </div>
+          `,
+          iconSize: [28, 42],
+          iconAnchor: [14, 21],
+        });
+
+        L.marker([pt.lat, pt.lon], { icon, interactive: false }).addTo(group);
+      }
+    }
+  }, [gridMatrix, activeLayer]);
+
+  useEffect(() => {
+    const group = stormGroupRef.current;
+    if (!group) return;
+    group.clearLayers();
+
+    for (const storm of storms) {
+      if (storm.track && storm.track.length > 1) {
+        const latlngs = storm.track.map((t) => [t.lat, t.lon] as [number, number]);
+        L.polyline(latlngs, {
+          color: '#f43f5e',
+          weight: 2,
+          dashArray: '4 4',
+          opacity: 0.75,
+        }).addTo(group);
+      }
+
+      const isCyclone = storm.category === 'cyclone';
+      const ringColor = isCyclone ? 'border-rose-500 bg-rose-500/25' : 'border-amber-400 bg-amber-400/25';
+      const coreColor = isCyclone ? 'bg-rose-500' : 'bg-amber-400';
+
+      const icon = L.divIcon({
+        className: 'weather-storm-marker',
+        html: `
+          <div class="relative flex h-8 w-8 items-center justify-center cursor-pointer" title="${storm.title}">
+            <span class="absolute inset-0 animate-ping rounded-full ${coreColor} opacity-35"></span>
+            <span class="relative flex h-5 w-5 items-center justify-center rounded-full border-2 ${ringColor} backdrop-blur-sm">
+              <span class="h-2 w-2 rounded-full ${coreColor}"></span>
+            </span>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+
+      const marker = L.marker([storm.lat, storm.lon], { icon });
+      marker.bindTooltip(`${storm.title} · ${storm.description}`, {
+        direction: 'top',
+        offset: [0, -10],
+      });
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        onSelectStorm(storm);
+      });
+      marker.addTo(group);
+    }
+  }, [storms, onSelectStorm]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (selectedMarkerRef.current) {
+      map.removeLayer(selectedMarkerRef.current);
+      selectedMarkerRef.current = null;
+    }
+
+    if (!selectedCoords) return;
+
+    selectedMarkerRef.current = L.circleMarker(
+      [selectedCoords.lat, selectedCoords.lon],
+      {
+        radius: 7,
+        color: '#22d3ee',
+        weight: 2.5,
+        fillColor: '#0B111E',
+        fillOpacity: 0.9,
+      }
+    ).addTo(map);
+  }, [selectedCoords]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !flyToTarget) return;
+
+    if (flyToTarget.fitWorld) {
+      map.fitBounds(
+        [
+          [-56, -172],
+          [72, 172],
+        ],
+        { padding: [12, 12], animate: true, duration: 0.9 }
+      );
+      return;
+    }
+
+    map.flyTo([flyToTarget.lat, flyToTarget.lon], flyToTarget.zoom, {
+      duration: 0.9,
+    });
+  }, [flyToTarget]);
+
+  const handleZoomIn = () => {
+    mapRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    mapRef.current?.zoomOut();
+  };
+
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-[#070B12]">
+      <div
+        ref={containerRef}
+        className="h-full w-full cursor-crosshair"
+        aria-label="İnteraktiv dünya hava xəritəsi"
+      />
+
+      <WeatherCanvasOverlay
+        map={mapReady}
+        gridMatrix={gridMatrix}
+        activeLayer={activeLayer}
+        showWindFlow={showWindFlow}
+      />
+
+      <div className="pointer-events-none absolute left-1/2 top-2 z-[750] -translate-x-1/2 rounded bg-[#070B12]/70 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-cyan-300/90 backdrop-blur-sm">
+        ŞİMAL
+      </div>
+      <div className="pointer-events-none absolute bottom-2 left-1/2 z-[750] -translate-x-1/2 rounded bg-[#070B12]/70 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-slate-300/85 backdrop-blur-sm md:hidden">
+        CƏNUB
+      </div>
+      <div className="pointer-events-none absolute left-2 top-1/2 z-[750] hidden -translate-y-1/2 rounded bg-[#070B12]/70 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-slate-300/85 backdrop-blur-sm md:block">
+        QƏRB
+      </div>
+      <div className="pointer-events-none absolute right-2 top-1/2 z-[750] hidden -translate-y-1/2 rounded bg-[#070B12]/70 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-slate-300/85 backdrop-blur-sm md:block">
+        ŞƏRQ
+      </div>
+
+      <div className="absolute right-3 top-36 z-[800] flex flex-col overflow-hidden rounded-xl border border-slate-800/90 bg-[#0B111E]/90 backdrop-blur-md md:left-[176px] md:right-auto md:top-16">
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          className="flex h-9 w-9 items-center justify-center border-b border-slate-800/80 text-slate-200 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+          title="Yaxınlaşdır"
+          aria-label="Yaxınlaşdır"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          className="flex h-9 w-9 items-center justify-center text-slate-200 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+          title="Uzaqlaşdır"
+          aria-label="Uzaqlaşdır"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+src/components/ForecastPanel.tsx
+Tsx
+import { useState } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Cloud,
+  CloudRain,
+  Compass,
+  Droplets,
+  Gauge,
+  Loader2,
+  Navigation,
+  Sunrise,
+  Sunset,
+  Wind,
+  X,
+  Zap,
+} from 'lucide-react';
+import type { SelectedLocationWeather, StormEvent } from '../types/weather';
+import {
+  formatDateShortAz,
+  formatHourAz,
+  formatWeekdayAz,
+  getDirectionAz,
+  getWeatherInfoAz,
+  getWindStrengthAz,
+} from '../utils/weatherAz';
+import { WeatherIcon } from './WeatherIcon';
+
+interface ForecastPanelProps {
+  weather: SelectedLocationWeather | null;
+  isLoading: boolean;
+  error: string | null;
+  storms: StormEvent[];
+  onSelectStorm: (storm: StormEvent) => void;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  onCloseMobile?: () => void;
+}
+
+type PanelTab = 'hourly' | 'daily' | 'storms';
+
+export function ForecastPanel({
+  weather,
+  isLoading,
+  error,
+  storms,
+  onSelectStorm,
+  isOpen,
+  onToggleOpen,
+  onCloseMobile,
+}: ForecastPanelProps) {
+  const [activeTab, setActiveTab] = useState<PanelTab>('hourly');
+  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="fixed bottom-4 right-4 z-[900] flex items-center gap-2 rounded-xl border border-slate-700/90 bg-[#0B111E]/95 px-4 py-2.5 text-xs font-semibold text-slate-100 shadow-2xl backdrop-blur-md transition-colors hover:border-cyan-500/60"
+      >
+        {weather ? (
+          <>
+            <WeatherIcon code={weather.current.weatherCode} className="h-4 w-4" />
+            <span>{weather.name}</span>
+            <span className="font-mono-tabular text-cyan-300">
+              {Math.round(weather.current.temperature)}°C
+            </span>
+          </>
+        ) : (
+          <span>Hava Proqnozu</span>
+        )}
+        <ChevronUp className="h-4 w-4 text-slate-400" />
+      </button>
+    );
+  }
+
+  const renderHourlyChart = (data: SelectedLocationWeather) => {
+    const hours = data.hourly;
+    if (!hours.length) return null;
+
+    const w = 340;
+    const h = 112;
+    const padX = 12;
+    const padTop = 18;
+    const padBottom = 22;
+    const innerW = w - padX * 2;
+    const innerH = h - padTop - padBottom;
+
+    const temps = hours.map((item) => item.temperature);
+    const minT = Math.min(...temps);
+    const maxT = Math.max(...temps);
+    const spanT = Math.max(2, maxT - minT);
+
+    const points = hours.map((item, idx) => {
+      const x = padX + (idx / Math.max(1, hours.length - 1)) * innerW;
+      const y =
+        padTop + innerH - ((item.temperature - minT) / spanT) * innerH;
+      return { x, y, item, idx };
+    });
+
+    const linePath = points
+      .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+      .join(' ');
+
+    const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(
+      h - padBottom
+    ).toFixed(1)} L ${points[0].x.toFixed(1)} ${(h - padBottom).toFixed(1)} Z`;
+
+    const activeIdx = hoveredHourIdx ?? 0;
+    const activePoint = points[activeIdx];
+
+    return (
+      <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+        <div className="mb-1.5 flex items-center justify-between text-[11px]">
+          <span className="text-slate-400">24 saatlıq temperatur və yağıntı</span>
+          {activePoint && (
+            <span className="font-mono-tabular font-semibold text-cyan-300">
+              {formatHourAz(activePoint.item.time)} ·{' '}
+              {activePoint.item.temperature.toFixed(1)}°C ·{' '}
+              {activePoint.item.precipitationProbability}% yağış
+            </span>
+          )}
+        </div>
+
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="h-28 w-full select-none overflow-visible"
+          onMouseLeave={() => setHoveredHourIdx(null)}
+        >
+          <defs>
+            <linearGradient id="tempAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {points.map((p) => {
+            const prob = p.item.precipitationProbability;
+            const barH = (prob / 100) * (innerH * 0.65);
+            return (
+              <rect
+                key={`bar-${p.idx}`}
+                x={p.x - 4}
+                y={h - padBottom - barH}
+                width={8}
+                height={barH}
+                rx={1.5}
+                fill="rgba(56, 189, 248, 0.25)"
+              />
+            );
+          })}
+
+          <path d={areaPath} fill="url(#tempAreaGrad)" />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="#22d3ee"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {points.map((p) => (
+            <g key={`pt-${p.idx}`}>
+              {p.idx % 4 === 0 && (
+                <text
+                  x={p.x}
+                  y={h - 5}
+                  textAnchor="middle"
+                  className="fill-slate-400 text-[9px] font-mono-tabular"
+                >
+                  {formatHourAz(p.item.time)}
+                </text>
+              )}
+              {activeIdx === p.idx && (
+                <>
+                  <line
+                    x1={p.x}
+                    y1={padTop - 4}
+                    x2={p.x}
+                    y2={h - padBottom}
+                    stroke="rgba(34, 211, 238, 0.4)"
+                    strokeDasharray="2 2"
+                  />
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={3.5}
+                    fill="#0B111E"
+                    stroke="#22d3ee"
+                    strokeWidth="2"
+                  />
+                </>
+              )}
+              <rect
+                x={p.x - innerW / hours.length / 2}
+                y={0}
+                width={innerW / hours.length}
+                height={h}
+                fill="transparent"
+                className="cursor-crosshair"
+                onMouseEnter={() => setHoveredHourIdx(p.idx)}
+              />
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  };
+
+  return (
+    <aside
+      aria-label="Seçilmiş məkanın hava proqnozu"
+      className="fixed inset-x-0 bottom-0 z-[920] flex max-h-[68vh] flex-col rounded-t-2xl border-t border-slate-800 bg-[#0B111E]/96 shadow-2xl backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-16 md:max-h-none md:w-[390px] md:rounded-2xl md:border"
+    >
+      <div className="flex items-start justify-between gap-3 border-b border-slate-800/90 px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-base font-bold text-slate-100">
+              {weather ? weather.name : 'Məkan yüklənir...'}
+            </h2>
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+            {weather?.country && <span>{weather.country}</span>}
+            {weather?.country && <span aria-hidden="true">·</span>}
+            {weather && (
+              <span className="font-mono-tabular">
+                {weather.lat.toFixed(2)}°, {weather.lon.toFixed(2)}°
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleOpen}
+            className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100"
+            title="Paneli yığ"
+            aria-label="Paneli yığ"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onCloseMobile ?? onToggleOpen}
+            className="flex md:hidden h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100"
+            aria-label="Bağla"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="weather-scroll flex-1 overflow-y-auto px-4 py-3">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-7 w-7 animate-spin text-cyan-400" />
+            <p className="mt-2.5 text-xs text-slate-400">
+              Real vaxtlı meteoroloji məlumatlar yüklənir...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-200">
+            {error}
+          </div>
+        ) : weather ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-mono-tabular text-4xl font-bold tracking-tight text-white">
+                    {Math.round(weather.current.temperature)}
+                  </span>
+                  <span className="text-lg font-medium text-slate-400">°C</span>
+                </div>
+                <div className="mt-0.5 text-sm font-medium text-slate-200">
+                  {getWeatherInfoAz(weather.current.weatherCode).label}
+                </div>
+                <div className="mt-0.5 text-xs text-slate-400">
+                  Hiss olunan:{' '}
+                  <span className="font-mono-tabular text-slate-200">
+                    {Math.round(weather.current.apparentTemperature)}°C
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end">
+                <WeatherIcon
+                  code={weather.current.weatherCode}
+                  className="h-12 w-12"
+                />
+                <span className="font-mono-tabular mt-1 text-[11px] text-slate-400">
+                  Müşahidə: {formatHourAz(weather.observedAt)}
+                </span>
+              </div>
+            </div>
+
+            {(() => {
+              const dir = getDirectionAz(weather.current.windDirection);
+              const strength = getWindStrengthAz(weather.current.windSpeed);
+              const blowToAngle = (weather.current.windDirection + 180) % 360;
+              return (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Wind className="h-3.5 w-3.5 text-cyan-400" />
+                        Külək sürəti
+                      </span>
+                      <Navigation
+                        className="h-3.5 w-3.5 text-cyan-400"
+                        style={{ transform: `rotate(${blowToAngle - 45}deg)` }}
+                      />
+                    </div>
+                    <div className="font-mono-tabular mt-1 text-base font-semibold text-slate-100">
+                      {Math.round(weather.current.windSpeed)}{' '}
+                      <span className="text-xs font-normal text-slate-400">
+                        km/saat
+                      </span>
+                    </div>
+                    <div className={`mt-0.5 text-[11px] ${strength.colorClass}`}>
+                      {strength.label} (Bofort {strength.beaufort})
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                      <Compass className="h-3.5 w-3.5 text-cyan-400" />
+                      İstiqamət və Şiddət
+                    </div>
+                    <div className="font-mono-tabular mt-1 text-base font-semibold text-slate-100">
+                      {dir.full}
+                    </div>
+                    <div className="font-mono-tabular mt-0.5 text-[11px] text-slate-400">
+                      {dir.degrees}° · Şiddət {Math.round(weather.current.windGusts)} km/s
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                      <Gauge className="h-3.5 w-3.5 text-cyan-400" />
+                      Təzyiq
+                    </div>
+                    <div className="font-mono-tabular mt-1 text-base font-semibold text-slate-100">
+                      {Math.round(weather.current.pressure)}{' '}
+                      <span className="text-xs font-normal text-slate-400">
+                        hPa
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                      <Droplets className="h-3.5 w-3.5 text-cyan-400" />
+                      Rütubət
+                    </div>
+                    <div className="font-mono-tabular mt-1 text-base font-semibold text-slate-100">
+                      {Math.round(weather.current.humidity)}
+                      <span className="text-xs font-normal text-slate-400">%</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                      <Cloud className="h-3.5 w-3.5 text-cyan-400" />
+                      Buludluluq
+                    </div>
+                    <div className="font-mono-tabular mt-1 text-base font-semibold text-slate-100">
+                      {Math.round(weather.current.cloudCover)}
+                      <span className="text-xs font-normal text-slate-400">%</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-2.5">
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                      <CloudRain className="h-3.5 w-3.5 text-cyan-400" />
+                      Yağıntı
+                    </div>
+                    <div className="font-mono-tabular mt-1 text-base font-semibold text-slate-100">
+                      {weather.current.precipitation.toFixed(1)}{' '}
+                      <span className="text-xs font-normal text-slate-400">
+                        mm
+                      </span>
+                    </div>
+                    {weather.current.snowfall > 0 && (
+                      <div className="font-mono-tabular text-[10px] text-indigo-200">
+                        Qar: {weather.current.snowfall.toFixed(1)} sm
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="grid grid-cols-3 gap-1 rounded-lg border border-slate-800 bg-[#070B12] p-1">
+              {(
+                [
+                  { id: 'hourly', label: '24 Saatlıq' },
+                  { id: 'daily', label: '7 Günlük' },
+                  { id: 'storms', label: `Fırtınalar (${storms.length})` },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`rounded-md py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'bg-cyan-500/20 text-cyan-300'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === 'hourly' && (
+              <div className="space-y-3">
+                {renderHourlyChart(weather)}
+
+                <div className="weather-scroll flex gap-2 overflow-x-auto pb-1">
+                  {weather.hourly.map((hour) => {
+                    const dir = getDirectionAz(hour.windDirection);
+                    const blowTo = (hour.windDirection + 180) % 360;
+                    return (
+                      <div
+                        key={hour.time}
+                        className="flex w-16 shrink-0 flex-col items-center rounded-xl border border-slate-800/80 bg-[#070B12]/70 px-2 py-2 text-center"
+                      >
+                        <span className="font-mono-tabular text-[11px] text-slate-400">
+                          {formatHourAz(hour.time)}
+                        </span>
+                        <WeatherIcon
+                          code={hour.weatherCode}
+                          className="my-1.5 h-5 w-5"
+                        />
+                        <span className="font-mono-tabular text-sm font-semibold text-slate-100">
+                          {Math.round(hour.temperature)}°
+                        </span>
+                        <span className="font-mono-tabular mt-0.5 text-[10px] text-cyan-300">
+                          {hour.precipitationProbability}%
+                        </span>
+                        <div className="mt-1 flex items-center gap-0.5 text-[10px] text-slate-400">
+                          <Navigation
+                            className="h-2.5 w-2.5 text-cyan-400"
+                            style={{ transform: `rotate(${blowTo - 45}deg)` }}
+                          />
+                          <span className="font-mono-tabular">
+                            {Math.round(hour.windSpeed)}
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-slate-500">
+                          {dir.short}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'daily' && (() => {
+              const minAll = Math.min(...weather.daily.map((d) => d.tempMin));
+              const maxAll = Math.max(...weather.daily.map((d) => d.tempMax));
+              const span = Math.max(1, maxAll - minAll);
+
+              return (
+                <div className="space-y-2">
+                  {weather.daily.map((day, idx) => {
+                    const leftPct = ((day.tempMin - minAll) / span) * 100;
+                    const widthPct = Math.max(
+                      8,
+                      ((day.tempMax - day.tempMin) / span) * 100
+                    );
+                    const info = getWeatherInfoAz(day.weatherCode);
+
+                    return (
+                      <div
+                        key={day.date}
+                        className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 px-3 py-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-slate-100">
+                              {formatWeekdayAz(day.date, idx)}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              {formatDateShortAz(day.date)} · {info.label}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            {day.precipitationProbabilityMax > 0 && (
+                              <span className="font-mono-tabular text-[11px] text-cyan-300">
+                                {day.precipitationProbabilityMax}%
+                              </span>
+                            )}
+                            <WeatherIcon
+                              code={day.weatherCode}
+                              className="h-5 w-5"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-2 flex items-center gap-2.5">
+                          <span className="font-mono-tabular w-8 text-xs text-slate-400">
+                            {Math.round(day.tempMin)}°
+                          </span>
+                          <div className="relative h-1.5 flex-1 rounded-full bg-slate-800">
+                            <div
+                              className="absolute top-0 h-full rounded-full"
+                              style={{
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`,
+                                background:
+                                  'linear-gradient(90deg, #38bdf8 0%, #f59e0b 100%)',
+                              }}
+                            />
+                          </div>
+                          <span className="font-mono-tabular w-8 text-right text-xs font-semibold text-slate-100">
+                            {Math.round(day.tempMax)}°
+                          </span>
+                        </div>
+
+                        <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400 font-mono-tabular">
+                          <span>
+                            Külək: {Math.round(day.windSpeedMax)} km/s (
+                            {getDirectionAz(day.windDirectionDominant).short})
+                          </span>
+                          <span className="flex items-center gap-2">
+                            {day.sunrise && (
+                              <span className="flex items-center gap-0.5">
+                                <Sunrise className="h-3 w-3 text-amber-400" />
+                                {formatHourAz(day.sunrise)}
+                              </span>
+                            )}
+                            {day.sunset && (
+                              <span className="flex items-center gap-0.5">
+                                <Sunset className="h-3 w-3 text-orange-400" />
+                                {formatHourAz(day.sunset)}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {activeTab === 'storms' && (
+              <div className="space-y-2">
+                {storms.length === 0 ? (
+                  <div className="rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-4 text-center text-xs text-slate-400">
+                    Hazırda qlobal şəbəkədə aktiv güclü siklon və ya fırtına ocağı qeydə alınmayıb.
+                  </div>
+                ) : (
+                  storms.map((storm) => (
+                    <button
+                      key={storm.id}
+                      type="button"
+                      onClick={() => onSelectStorm(storm)}
+                      className="flex w-full items-start gap-2.5 rounded-xl border border-slate-800/80 bg-[#070B12]/70 p-3 text-left transition-colors hover:border-amber-500/50 hover:bg-slate-900/80"
+                    >
+                      <Zap
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          storm.category === 'cyclone'
+                            ? 'text-rose-400'
+                            : 'text-amber-400'
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-semibold text-slate-100">
+                          {storm.title}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-slate-400">
+                          {storm.description}
+                        </div>
+                        <div className="font-mono-tabular mt-1 flex items-center gap-2 text-[10px] text-slate-500">
+                          <span>
+                            {storm.lat.toFixed(1)}°, {storm.lon.toFixed(1)}°
+                          </span>
+                          <span>·</span>
+                          <span>{storm.source}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+src/App.tsx
+Tsx
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { CompassRose } from './components/CompassRose';
+import { ForecastPanel } from './components/ForecastPanel';
+import { LayerControls } from './components/LayerControls';
+import { LayerLegend } from './components/LayerLegend';
+import { SearchBar } from './components/SearchBar';
+import { TimelinePlayer } from './components/TimelinePlayer';
+import { WorldWeatherMap } from './components/WorldWeatherMap';
+import {
+  fetchActiveStorms,
+  fetchGlobalWeatherGrid,
+  fetchLocationWeather,
+  fetchRainViewerMaps,
+} from './services/weatherApi';
+import type {
+  BaseMapId,
+  GridPointWeather,
+  HoverProbeData,
+  RainViewerData,
+  SelectedLocationWeather,
+  StormEvent,
+  WeatherLayerId,
+} from './types/weather';
+import { getDirectionAz } from './utils/weatherAz';
+
+export default function App() {
+  const [activeLayer, setActiveLayer] = useState<WeatherLayerId>('wind');
+  const [showWindFlow, setShowWindFlow] = useState<boolean>(true);
+  const [baseMap, setBaseMap] = useState<BaseMapId>('dark');
+
+  const [gridMatrix, setGridMatrix] = useState<GridPointWeather[][]>([]);
+  const [cities, setCities] = useState<GridPointWeather[]>([]);
+  const [storms, setStorms] = useState<StormEvent[]>([]);
+  const [rainViewer, setRainViewer] = useState<RainViewerData | null>(null);
+  const [isGlobalLoading, setIsGlobalLoading] = useState<boolean>(true);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+
+  const [radarFrameIndex, setRadarFrameIndex] = useState<number>(0);
+  const [satelliteFrameIndex, setSatelliteFrameIndex] = useState<number>(0);
+  const [isPlayingTimeline, setIsPlayingTimeline] = useState<boolean>(true);
+
+  const [selectedCoords, setSelectedCoords] = useState<{
+    lat: number;
+    lon: number;
+    name?: string;
+  }>({ lat: 40.4093, lon: 49.8671, name: 'Bakı' });
+  const [selectedWeather, setSelectedWeather] =
+    useState<SelectedLocationWeather | null>(null);
+  const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
+
+  const [hoverProbe, setHoverProbe] = useState<HoverProbeData | null>(null);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [flyToTarget, setFlyToTarget] = useState<{
+    lat: number;
+    lon: number;
+    zoom: number;
+    nonce: number;
+    fitWorld?: boolean;
+  } | null>(null);
+
+  const locationReqCounter = useRef(0);
+
+  const loadGlobalData = useCallback(async () => {
+    setIsGlobalLoading(true);
+    setGlobalError(null);
+    try {
+      const [gridRes, rvRes] = await Promise.all([
+        fetchGlobalWeatherGrid(),
+        fetchRainViewerMaps(),
+      ]);
+      setGridMatrix(gridRes.gridMatrix);
+      setCities(gridRes.cities);
+      if (rvRes) {
+        setRainViewer(rvRes);
+        if (rvRes.radarFrames.length > 0) {
+          setRadarFrameIndex(rvRes.radarFrames.length - 1);
+        }
+        if (rvRes.satelliteFrames.length > 0) {
+          setSatelliteFrameIndex(rvRes.satelliteFrames.length - 1);
+        }
+      }
+      const activeStorms = await fetchActiveStorms(gridRes.allPoints);
+      setStorms(activeStorms);
+    } catch (err) {
+      setGlobalError(
+        err instanceof Error
+          ? err.message
+          : 'Qlobal hava məlumatları yüklənərkən xəta baş verdi.'
+      );
+    } finally {
+      setIsGlobalLoading(false);
+    }
+  }, []);
+
+  const loadLocationDetail = useCallback(
+    async (
+      lat: number,
+      lon: number,
+      name?: string,
+      country?: string,
+      openPanel = true
+    ) => {
+      const reqId = ++locationReqCounter.current;
+      setSelectedCoords({ lat, lon, name });
+      setIsLocationLoading(true);
+      setLocationError(null);
+      if (openPanel) {
+        setIsPanelOpen(true);
+      }
+
+      try {
+        const detail = await fetchLocationWeather(lat, lon, name, country);
+        if (reqId === locationReqCounter.current) {
+          setSelectedWeather(detail);
+          setSelectedCoords({ lat: detail.lat, lon: detail.lon, name: detail.name });
+        }
+      } catch (err) {
+        if (reqId === locationReqCounter.current) {
+          setLocationError(
+            err instanceof Error
+              ? err.message
+              : 'Seçilmiş məkan üçün proqnoz alınmadı.'
+          );
+        }
+      } finally {
+        if (reqId === locationReqCounter.current) {
+          setIsLocationLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadGlobalData();
+    loadLocationDetail(40.4093, 49.8671, 'Bakı', 'Azərbaycan', false);
+  }, [loadGlobalData, loadLocationDetail]);
+
+  useEffect(() => {
+    if (!isPlayingTimeline || !rainViewer) return;
+    if (activeLayer !== 'precipitation' && activeLayer !== 'clouds') return;
+
+    const timer = setInterval(() => {
+      if (activeLayer === 'precipitation' && rainViewer.radarFrames.length > 1) {
+        setRadarFrameIndex(
+          (prev) => (prev + 1) % rainViewer.radarFrames.length
+        );
+      } else if (
+        activeLayer === 'clouds' &&
+        rainViewer.satelliteFrames.length > 1
+      ) {
+        setSatelliteFrameIndex(
+          (prev) => (prev + 1) % rainViewer.satelliteFrames.length
+        );
+      }
+    }, 850);
+
+    return () => clearInterval(timer);
+  }, [isPlayingTimeline, activeLayer, rainViewer]);
+
+  const handleSelectSearchLocation = useCallback(
+    (lat: number, lon: number, name: string, country?: string) => {
+      setFlyToTarget({ lat, lon, zoom: 7, nonce: Date.now() });
+      loadLocationDetail(lat, lon, name, country);
+    },
+    [loadLocationDetail]
+  );
+
+  const handleMapClick = useCallback(
+    (lat: number, lon: number, name?: string, country?: string) => {
+      loadLocationDetail(lat, lon, name, country);
+    },
+    [loadLocationDetail]
+  );
+
+  const handleSelectStorm = useCallback(
+    (storm: StormEvent) => {
+      setActiveLayer('storms');
+      setFlyToTarget({
+        lat: storm.lat,
+        lon: storm.lon,
+        zoom: 5,
+        nonce: Date.now(),
+      });
+      loadLocationDetail(storm.lat, storm.lon, storm.title, storm.source);
+    },
+    [loadLocationDetail]
+  );
+
+  const handleResetWorldView = useCallback(() => {
+    setIsPanelOpen(false);
+    setFlyToTarget({
+      lat: 20,
+      lon: 10,
+      zoom: 2,
+      nonce: Date.now(),
+      fitWorld: true,
+    });
+  }, []);
+
+  const handleLocateUser = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const { latitude, longitude } = pos.coords;
+        setFlyToTarget({
+          lat: latitude,
+          lon: longitude,
+          zoom: 8,
+          nonce: Date.now(),
+        });
+        loadLocationDetail(latitude, longitude);
+      },
+      () => {
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  }, [loadLocationDetail]);
+
+  const activeTimelineFrames =
+    activeLayer === 'precipitation'
+      ? rainViewer?.radarFrames ?? []
+      : activeLayer === 'clouds'
+        ? rainViewer?.satelliteFrames ?? []
+        : [];
+  const activeTimelineIdx =
+    activeLayer === 'precipitation' ? radarFrameIndex : satelliteFrameIndex;
+
+  const activeCompassWindDir =
+    hoverProbe?.windDirection ?? selectedWeather?.current.windDirection;
+  const activeCompassWindSpeed =
+    hoverProbe?.windSpeed ?? selectedWeather?.current.windSpeed;
+  const activeCompassName = hoverProbe
+    ? `${hoverProbe.lat.toFixed(1)}°, ${hoverProbe.lon.toFixed(1)}°`
+    : selectedWeather?.name;
+
+  return (
+    <div className="relative h-screen w-screen overflow-hidden bg-[#070B12] text-slate-100">
+      <header className="fixed inset-x-0 top-0 z-[950] border-b border-slate-800/80 bg-[#070B12]/92 px-3 py-2 backdrop-blur-xl md:h-14 md:px-4 md:py-0">
+        <div className="flex flex-col gap-2 md:h-full md:flex-row md:items-center md:justify-between md:gap-6">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-sm font-bold tracking-tight text-slate-100 sm:text-base whitespace-nowrap shrink-0">
+              DÜNYA CANLI HAVA XƏRİTƏSİ
+            </h1>
+
+            <button
+              type="button"
+              onClick={loadGlobalData}
+              disabled={isGlobalLoading}
+              className="flex md:hidden h-8 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-[#0D1424] px-2.5 text-xs font-medium text-slate-200 disabled:opacity-60"
+              aria-label="Məlumatları yenilə"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 text-cyan-400 ${
+                  isGlobalLoading ? 'animate-spin' : ''
+                }`}
+              />
+              <span>Yenilə</span>
+            </button>
+          </div>
+
+          <div className="flex-1 md:max-w-xl">
+            <SearchBar
+              onSelectLocation={handleSelectSearchLocation}
+              onResetWorldView={handleResetWorldView}
+              onLocateUser={handleLocateUser}
+              isLocating={isLocating}
+            />
+          </div>
+
+          <div className="hidden md:flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={loadGlobalData}
+              disabled={isGlobalLoading}
+              className="flex h-9 items-center gap-2 rounded-lg border border-slate-700/80 bg-[#0D1424] px-3.5 text-xs font-medium text-slate-100 transition-colors hover:border-cyan-500/60 hover:text-cyan-300 disabled:opacity-60 whitespace-nowrap shrink-0"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 text-cyan-400 ${
+                  isGlobalLoading ? 'animate-spin' : ''
+                }`}
+              />
+              <span>{isGlobalLoading ? 'Yenilənir...' : 'Yenilə'}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="h-full w-full pt-[92px] md:pt-14">
+        <WorldWeatherMap
+          baseMap={baseMap}
+          activeLayer={activeLayer}
+          showWindFlow={showWindFlow}
+          gridMatrix={gridMatrix}
+          cities={cities}
+          storms={storms}
+          rainViewer={rainViewer}
+          radarFrameIndex={radarFrameIndex}
+          satelliteFrameIndex={satelliteFrameIndex}
+          selectedCoords={selectedCoords}
+          flyToTarget={flyToTarget}
+          onMapClick={handleMapClick}
+          onHoverProbe={setHoverProbe}
+          onSelectStorm={handleSelectStorm}
+        />
+      </main>
+
+      {globalError && (
+        <div className="fixed left-1/2 top-24 z-[960] -translate-x-1/2 rounded-xl border border-rose-500/40 bg-rose-950/90 px-4 py-2 text-xs text-rose-100 shadow-xl backdrop-blur-md">
+          {globalError}
+        </div>
+      )}
+
+      <div className="fixed left-3 right-3 top-[98px] z-[860] md:left-4 md:right-auto md:top-16">
+        <LayerControls
+          activeLayer={activeLayer}
+          onChangeLayer={setActiveLayer}
+          showWindFlow={showWindFlow}
+          onToggleWindFlow={() => setShowWindFlow((prev) => !prev)}
+          baseMap={baseMap}
+          onChangeBaseMap={setBaseMap}
+          stormCount={storms.length}
+        />
+      </div>
+
+      {hoverProbe && (
+        <div className="pointer-events-none fixed left-[228px] top-16 z-[840] hidden lg:flex items-center gap-3 rounded-xl border border-slate-800/90 bg-[#0B111E]/90 px-3 py-2 text-xs backdrop-blur-md">
+          <span className="font-mono-tabular text-slate-400">
+            {hoverProbe.lat.toFixed(2)}°, {hoverProbe.lon.toFixed(2)}°
+          </span>
+          <span className="text-slate-700">|</span>
+          <span className="font-mono-tabular font-semibold text-amber-300">
+            {hoverProbe.temperature.toFixed(1)}°C
+          </span>
+          <span className="font-mono-tabular text-cyan-300">
+            {Math.round(hoverProbe.windSpeed)} km/s ({getDirectionAz(hoverProbe.windDirection).short})
+          </span>
+          <span className="font-mono-tabular text-slate-300">
+            {Math.round(hoverProbe.pressure)} hPa
+          </span>
+          <span className="font-mono-tabular text-emerald-300">
+            {Math.round(hoverProbe.humidity)}%
+          </span>
+        </div>
+      )}
+
+      <div className="fixed bottom-4 left-3 z-[850] flex items-end gap-2.5 md:left-4">
+        <CompassRose
+          windDirection={activeCompassWindDir}
+          windSpeed={activeCompassWindSpeed}
+          locationName={activeCompassName}
+        />
+        <div className="hidden sm:block">
+          <LayerLegend activeLayer={activeLayer} />
+        </div>
+      </div>
+
+      <div className="fixed bottom-4 left-1/2 z-[860] -translate-x-1/2 hidden md:block">
+        <TimelinePlayer
+          activeLayer={activeLayer}
+          frames={activeTimelineFrames}
+          frameIndex={activeTimelineIdx}
+          isPlaying={isPlayingTimeline}
+          onTogglePlay={() => setIsPlayingTimeline((p) => !p)}
+          onChangeIndex={(idx) => {
+            setIsPlayingTimeline(false);
+            if (activeLayer === 'precipitation') setRadarFrameIndex(idx);
+            else if (activeLayer === 'clouds') setSatelliteFrameIndex(idx);
+          }}
+        />
+      </div>
+
+      <ForecastPanel
+        weather={selectedWeather}
+        isLoading={isLocationLoading}
+        error={locationError}
+        storms={storms}
+        onSelectStorm={handleSelectStorm}
+        isOpen={isPanelOpen}
+        onToggleOpen={() => setIsPanelOpen((prev) => !prev)}
+        onCloseMobile={() => setIsPanelOpen(false)}
+      />
+    </div>
+  );
+}

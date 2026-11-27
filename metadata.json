@@ -1,0 +1,6 @@
+{
+  "name": "DÜNYA CANLI HAVA XƏRİTƏSİ",
+  "description": "Bütün dünyanı əhatə edən real vaxtlı interaktiv canlı hava xəritəsi, külək axınları, temperatur, yağıntı, bulud, peyk/radar görüntüləri və 24 saatlıq / 7 günlük hava proqnozu.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
